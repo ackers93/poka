@@ -10,7 +10,12 @@ targets:
     type: application
     platform: [iOS, macOS]
     sources:
-      - path: Poka
+      - path: .
+        excludes:
+          - README.md
+          - project.yml
+          - .gitignore
+          - "*.xcodeproj"
     settings:
       PRODUCT_BUNDLE_IDENTIFIER: app.poka.notes
       MARKETING_VERSION: "0.1.0"
@@ -19,5 +24,5 @@ targets:
       INFOPLIST_KEY_CFBundleDisplayName: Poka
       INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
       SWIFT_VERSION: "6.0"
-      CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: Poka/Poka-macOS.entitlements
+      CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: Poka-macOS.entitlements
       ENABLE_HARDENED_RUNTIME: YES

@@ -19,11 +19,11 @@ A simple Obsidian-style Markdown notes app for **macOS** and **iOS**. Poka does 
 
 You need **Xcode** from the Mac App Store. Poka is not a script or web app — you run it from Xcode like any SwiftUI project.
 
-1. **Open the project file** (not the `Poka/` source folder):
+1. **Open the project** in Xcode:
    ```bash
    open /Users/ackers/Desktop/code/poka/Poka.xcodeproj
    ```
-   Or in Finder: go to `Desktop/code/poka` and double-click **`Poka.xcodeproj`**.
+   Or in Finder: open `Desktop/code/poka` and double-click **`Poka.xcodeproj`**. Swift sources live in that same folder (`Models/`, `Views/`, etc.).
 
 2. In the **Xcode toolbar** (top left, next to the stop button), open the **scheme** menu. It does *not* say “Poka” — pick one of:
    - **`Poka_macOS`** — Mac app (recommended on your Mac)
@@ -57,14 +57,13 @@ Poka remembers the folder via a security-scoped bookmark so you can reopen the a
 ## Project layout
 
 ```
-Poka/
+poka/                    repo root — app source + Xcode project
   PokaApp.swift          App entry
   Models/Note.swift
-  Services/
-    VaultService.swift   Folder selection & bookmarks
-    NoteStore.swift      Load/save .md files
+  Services/              Vault + note file I/O
   Views/                 SwiftUI screens
-project.yml              XcodeGen spec
+  Poka.xcodeproj
+  project.yml            XcodeGen spec
 ```
 
 ## Roadmap ideas
