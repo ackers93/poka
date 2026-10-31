@@ -183,21 +183,36 @@ final class NoteStore {
     func renameNote(_ note: Note, to name: String) {
         let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanedName.isEmpty else { return }
+        guard !cleanedName.contains("/"), !cleanedName.contains(":") else {
+            errorMessage = "Note names cannot contain / or :."
+            return
+        }
         guard vault?.startAccessingVault() != nil else { return }
         defer { vault?.stopAccessingVault() }
 
+        let destination = note.fileURL
+            .deletingLastPathComponent()
+            .appendingPathComponent(cleanedName)
+            .appendingPathExtension("md")
+        guard destination == note.fileURL || !FileManager.default.fileExists(atPath: destination.path) else {
+            errorMessage = "A note named \(cleanedName) already exists in this folder."
+            return
+        }
+
         do {
+            saveTask?.cancel()
             let source = try String(contentsOf: note.fileURL, encoding: .utf8)
             let document = MarkdownDocument.parse(source)
-            let updatedFrontmatter = document.frontmatter.updating(name: cleanedName)
-            try updatedFrontmatter.rendered(with: document.body).write(to: note.fileURL, atomically: true, encoding: .utf8)
-            if let index = notes.firstIndex(where: { $0.id == note.id }) {
-                notes[index].title = cleanedName
-                notes[index].frontmatter = updatedFrontmatter
-                notes[index].modifiedAt = Date()
+            let updatedBody = Self.updatingDocumentTitle(in: document.body, to: cleanedName)
+            let updatedFrontmatter = document.frontmatter.updating(name: cleanedName, updated: Self.metadataDate())
+            try updatedFrontmatter.rendered(with: updatedBody).write(to: note.fileURL, atomically: true, encoding: .utf8)
+            if destination != note.fileURL {
+                try FileManager.default.moveItem(at: note.fileURL, to: destination)
             }
-            if loadedFileURL == note.fileURL {
-                loadedFrontmatter = updatedFrontmatter
+            selectedNoteID = nil
+            reload()
+            if let renamed = notes.first(where: { $0.fileURL == destination }) {
+                select(renamed)
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -289,5 +304,19 @@ final class NoteStore {
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd"
         return formatter.string(from: Date())
+    }
+
+    private static func updatingDocumentTitle(in body: String, to title: String) -> String {
+        var lines = body.replacingOccurrences(of: "\r\n", with: "\n")
+            .replacingOccurrences(of: "\r", with: "\n")
+            .split(separator: "\n", omittingEmptySubsequences: false)
+            .map(String.init)
+
+        if let index = lines.firstIndex(where: { $0.hasPrefix("# ") }) {
+            lines[index] = "# \(title)"
+        } else {
+            lines.insert("# \(title)", at: 0)
+        }
+        return lines.joined(separator: "\n")
     }
 }
