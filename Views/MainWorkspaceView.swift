@@ -15,46 +15,19 @@ struct MainWorkspaceView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $noteStore.selectedNoteID) {
-                if !noteStore.folders.isEmpty {
-                    Section("Folders") {
-                        ForEach(noteStore.folders) { folder in
-                            Label(folder.relativePath, systemImage: "folder")
-                                .contentShape(Rectangle())
-                                .background(selectedFolderURL == folder.url ? Color.accentColor.opacity(0.16) : .clear)
-                                .onTapGesture {
-                                    selectedFolderURL = folder.url
-                                    noteStore.selectedNoteID = nil
-                                }
-                                .onDrop(of: [.text], delegate: FolderDropDelegate(folder: folder, noteStore: noteStore))
-                                .contextMenu {
-                                    Button {
-                                        noteStore.createNote(in: folder.url)
-                                    } label: {
-                                        Label("New Note", systemImage: "square.and.pencil")
-                                    }
-                                    Button {
-                                        selectedFolderURL = folder.url
-                                        newFolderName = ""
-                                        isCreatingFolder = true
-                                    } label: {
-                                        Label("New Folder", systemImage: "folder.badge.plus")
-                                    }
-                                    Divider()
-                                    Button("Rename Folder") {
-                                        folderToRename = folder
-                                        renamedFolderName = folder.name
-                                    }
-                                }
-                        }
-                    }
+                ForEach(folderTree) { node in
+                    FolderTreeRow(
+                        node: node,
+                        noteStore: noteStore,
+                        selectedFolderURL: $selectedFolderURL,
+                        isCreatingFolder: $isCreatingFolder,
+                        newFolderName: $newFolderName,
+                        folderToRename: $folderToRename,
+                        renamedFolderName: $renamedFolderName
+                    )
                 }
-
-                ForEach(noteStore.notes) { note in
-                    Text(note.title)
-                        .tag(note.id)
-                        .onDrag {
-                            NSItemProvider(object: note.id as NSString)
-                        }
+                ForEach(rootNotes) { note in
+                    NoteSidebarRow(note: note)
                 }
             }
             .navigationTitle(vaultTitle)
@@ -173,6 +146,27 @@ struct MainWorkspaceView: View {
         return (path as NSString).lastPathComponent
     }
 
+    private var folderTree: [FolderTreeNode] {
+        folders(in: vault.rootURL)
+    }
+
+    private var rootNotes: [Note] {
+        guard let root = vault.rootURL else { return noteStore.notes }
+        return noteStore.notes.filter { $0.fileURL.deletingLastPathComponent() == root }
+    }
+
+    private func folders(in parent: URL?) -> [FolderTreeNode] {
+        noteStore.folders
+            .filter { $0.url.deletingLastPathComponent() == parent }
+            .map { folder in
+                FolderTreeNode(
+                    folder: folder,
+                    children: folders(in: folder.url),
+                    notes: noteStore.notes.filter { $0.fileURL.deletingLastPathComponent() == folder.url }
+                )
+            }
+    }
+
     #if os(macOS)
     private func revealVaultInFinder() {
         guard let url = vault.startAccessingVault() else { return }
@@ -182,6 +176,91 @@ struct MainWorkspaceView: View {
     #else
     private func revealVaultInFinder() {}
     #endif
+}
+
+private struct FolderTreeNode: Identifiable {
+    let folder: NoteFolder
+    let children: [FolderTreeNode]
+    let notes: [Note]
+
+    var id: String { folder.id }
+}
+
+private struct FolderTreeRow: View {
+    let node: FolderTreeNode
+    let noteStore: NoteStore
+    @Binding var selectedFolderURL: URL?
+    @Binding var isCreatingFolder: Bool
+    @Binding var newFolderName: String
+    @Binding var folderToRename: NoteFolder?
+    @Binding var renamedFolderName: String
+
+    var body: some View {
+        if node.children.isEmpty && node.notes.isEmpty {
+            folderLabel
+        } else {
+            DisclosureGroup {
+                ForEach(node.children) { child in
+                    FolderTreeRow(
+                        node: child,
+                        noteStore: noteStore,
+                        selectedFolderURL: $selectedFolderURL,
+                        isCreatingFolder: $isCreatingFolder,
+                        newFolderName: $newFolderName,
+                        folderToRename: $folderToRename,
+                        renamedFolderName: $renamedFolderName
+                    )
+                }
+                ForEach(node.notes) { note in
+                    NoteSidebarRow(note: note)
+                }
+            } label: {
+                folderLabel
+            }
+        }
+    }
+
+    private var folderLabel: some View {
+        Label(node.folder.name, systemImage: "folder")
+            .contentShape(Rectangle())
+            .background(selectedFolderURL == node.folder.url ? Color.accentColor.opacity(0.16) : .clear)
+            .onTapGesture {
+                selectedFolderURL = node.folder.url
+                noteStore.selectedNoteID = nil
+            }
+            .onDrop(of: [.text], delegate: FolderDropDelegate(folder: node.folder, noteStore: noteStore))
+            .contextMenu {
+                Button {
+                    noteStore.createNote(in: node.folder.url)
+                } label: {
+                    Label("New Note", systemImage: "square.and.pencil")
+                }
+                Button {
+                    selectedFolderURL = node.folder.url
+                    newFolderName = ""
+                    isCreatingFolder = true
+                } label: {
+                    Label("New Folder", systemImage: "folder.badge.plus")
+                }
+                Divider()
+                Button("Rename Folder") {
+                    folderToRename = node.folder
+                    renamedFolderName = node.folder.name
+                }
+            }
+    }
+}
+
+private struct NoteSidebarRow: View {
+    let note: Note
+
+    var body: some View {
+        Text(note.title)
+            .tag(note.id)
+            .onDrag {
+                NSItemProvider(object: note.id as NSString)
+            }
+    }
 }
 
 private struct FolderDropDelegate: DropDelegate {

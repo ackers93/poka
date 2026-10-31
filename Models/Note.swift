@@ -34,4 +34,5 @@ struct NoteFolder: Identifiable, Hashable, Sendable {
 
     var id: String { url.path }
     var name: String { url.lastPathComponent }
+    var depth: Int { max(0, relativePath.split(separator: "/").count - 1) }
 }
