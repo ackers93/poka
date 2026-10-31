@@ -4,6 +4,7 @@ struct BlockEditorView: View {
     @Bindable var noteStore: NoteStore
     @FocusState private var focusedBlockID: UUID?
     @State private var slashStates: [UUID: SlashCommandState] = [:]
+    @State private var selectedSlashCommandIndices: [UUID: Int] = [:]
 
     var body: some View {
         ScrollView {
@@ -34,19 +35,41 @@ struct BlockEditorView: View {
         }
         .onChange(of: noteStore.selectedNoteID) { _, _ in
             slashStates = [:]
+            selectedSlashCommandIndices = [:]
             focusedBlockID = noteStore.editorBlocks.first?.id
         }
         #if os(macOS)
-        .onKeyPress(.return, phases: .down) { press in
-            if press.modifiers.contains(.command) {
-                insertBlockAfterFocused()
-                return .handled
+        .onKeyPress(phases: .down) { press in
+            if press.key == .delete {
+                deleteEmptyFocusedBlock()
+                return .ignored
             }
-            return .ignored
-        }
-        .onKeyPress(.delete, phases: .down) { _ in
-            deleteEmptyFocusedBlock()
-            return .ignored
+
+            guard let blockID = focusedBlockID, slashStates[blockID] != nil else {
+                if press.key == .return, press.modifiers.contains(.command) {
+                    insertBlockAfterFocused()
+                    return .handled
+                }
+                return .ignored
+            }
+
+            switch press.key {
+            case .upArrow:
+                moveSlashCommandSelection(for: blockID, by: -1)
+                return .handled
+            case .downArrow:
+                moveSlashCommandSelection(for: blockID, by: 1)
+                return .handled
+            case .return:
+                selectHighlightedSlashCommand(for: blockID)
+                return .handled
+            case .escape:
+                slashStates[blockID] = nil
+                selectedSlashCommandIndices[blockID] = nil
+                return .handled
+            default:
+                return .ignored
+            }
         }
         #endif
         .safeAreaInset(edge: .bottom) {
@@ -64,6 +87,7 @@ struct BlockEditorView: View {
             block: binding(for: index),
             listMarker: listMarker(for: block, at: index),
             slashState: slashStates[block.id],
+            selectedSlashCommandIndex: selectedSlashCommandIndices[block.id] ?? 0,
             isFocused: focusedBlockID == block.id,
             onTextChange: { text in
                 updateSlashState(for: block.id, text: text)
@@ -97,8 +121,18 @@ struct BlockEditorView: View {
     private func updateSlashState(for blockID: UUID, text: String) {
         if let state = SlashCommandParser.activeCommand(in: text) {
             slashStates[blockID] = state
+            let optionCount = SlashCommandMenu.options(matching: state.filter).count
+            if optionCount > 0 {
+                selectedSlashCommandIndices[blockID] = min(
+                    selectedSlashCommandIndices[blockID] ?? 0,
+                    optionCount - 1
+                )
+            } else {
+                selectedSlashCommandIndices[blockID] = nil
+            }
         } else {
             slashStates[blockID] = nil
+            selectedSlashCommandIndices[blockID] = nil
         }
     }
 
@@ -114,6 +148,7 @@ struct BlockEditorView: View {
         }
         noteStore.editorBlocks[index] = block
         slashStates[blockID] = nil
+        selectedSlashCommandIndices[blockID] = nil
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
 
         if kind == .divider {
@@ -156,5 +191,26 @@ struct BlockEditorView: View {
         noteStore.editorBlocks.remove(at: index)
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
         focusedBlockID = previousID ?? noteStore.editorBlocks.first?.id
+    }
+
+    private func moveSlashCommandSelection(for blockID: UUID, by offset: Int) {
+        guard let slashState = slashStates[blockID] else { return }
+        let options = SlashCommandMenu.options(matching: slashState.filter)
+        guard !options.isEmpty else { return }
+        let current = selectedSlashCommandIndices[blockID] ?? 0
+        selectedSlashCommandIndices[blockID] = (current + offset + options.count) % options.count
+    }
+
+    private func selectHighlightedSlashCommand(for blockID: UUID) {
+        guard let slashState = slashStates[blockID] else { return }
+        let options = SlashCommandMenu.options(matching: slashState.filter)
+        guard let kind = options[safe: selectedSlashCommandIndices[blockID] ?? 0] else { return }
+        applySlashCommand(blockID: blockID, kind: kind)
+    }
+}
+
+private extension Collection {
+    subscript(safe index: Index) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

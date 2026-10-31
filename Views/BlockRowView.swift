@@ -4,6 +4,7 @@ struct BlockRowView: View {
     @Binding var block: Block
     var listMarker: String?
     var slashState: SlashCommandState?
+    var selectedSlashCommandIndex: Int
     var isFocused: Bool
     let onTextChange: (String) -> Void
     let onSelectSlashCommand: (BlockKind) -> Void
@@ -28,7 +29,10 @@ struct BlockRowView: View {
             }
 
             if isFocused, slashState != nil {
-                SlashCommandMenu(filter: slashState?.filter ?? "") { kind in
+                SlashCommandMenu(
+                    filter: slashState?.filter ?? "",
+                    selectedIndex: selectedSlashCommandIndex
+                ) { kind in
                     onSelectSlashCommand(kind)
                 }
                 .padding(.leading, listMarker == nil ? 0 : 28)
