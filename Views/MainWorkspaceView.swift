@@ -5,22 +5,49 @@ struct MainWorkspaceView: View {
     @Bindable var noteStore: NoteStore
 
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
+    @State private var isCreatingFolder = false
+    @State private var newFolderName = ""
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $noteStore.selectedNoteID) {
+                if !noteStore.folders.isEmpty {
+                    Section("Folders") {
+                        ForEach(noteStore.folders) { folder in
+                            Label(folder.relativePath, systemImage: "folder")
+                        }
+                    }
+                }
+
                 ForEach(noteStore.notes) { note in
                     Text(note.title)
                         .tag(note.id)
                 }
             }
             .navigationTitle(vaultTitle)
+            .contextMenu {
+                Button {
+                    noteStore.createNote()
+                } label: {
+                    Label("New Note", systemImage: "square.and.pencil")
+                }
+                Button {
+                    isCreatingFolder = true
+                } label: {
+                    Label("New Folder", systemImage: "folder.badge.plus")
+                }
+            }
             .toolbar {
                 ToolbarItemGroup {
                     Button {
                         noteStore.createNote()
                     } label: {
                         Label("New note", systemImage: "square.and.pencil")
+                    }
+                    Button {
+                        isCreatingFolder = true
+                    } label: {
+                        Label("New folder", systemImage: "folder.badge.plus")
                     }
                     Button {
                         noteStore.reload()
@@ -38,6 +65,18 @@ struct MainWorkspaceView: View {
             .onChange(of: noteStore.selectedNoteID) { _, newID in
                 guard let id = newID, let note = noteStore.notes.first(where: { $0.id == id }) else { return }
                 noteStore.select(note)
+            }
+            .alert("New Folder", isPresented: $isCreatingFolder) {
+                TextField("Folder name", text: $newFolderName)
+                Button("Create") {
+                    noteStore.createFolder(named: newFolderName)
+                    newFolderName = ""
+                }
+                Button("Cancel", role: .cancel) {
+                    newFolderName = ""
+                }
+            } message: {
+                Text("The folder will be created at the top level of this vault.")
             }
         } detail: {
             if noteStore.selectedNote != nil {

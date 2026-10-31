@@ -27,3 +27,11 @@ struct Note: Identifiable, Hashable, Sendable {
         return cleaned.isEmpty ? filename : cleaned
     }
 }
+
+struct NoteFolder: Identifiable, Hashable, Sendable {
+    var url: URL
+    var relativePath: String
+
+    var id: String { url.path }
+    var name: String { url.lastPathComponent }
+}

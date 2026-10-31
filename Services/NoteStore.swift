@@ -4,6 +4,7 @@ import Foundation
 @Observable
 final class NoteStore {
     private(set) var notes: [Note] = []
+    private(set) var folders: [NoteFolder] = []
     var selectedNoteID: String?
     var editorBlocks: [Block] = [Block()]
     private(set) var isLoading = false
@@ -25,6 +26,7 @@ final class NoteStore {
     func reload() {
         guard let root = vault?.startAccessingVault() else {
             notes = []
+            folders = []
             selectedNoteID = nil
             editorBlocks = [Block()]
             return
@@ -38,7 +40,7 @@ final class NoteStore {
         let fm = FileManager.default
         guard let enumerator = fm.enumerator(
             at: root,
-            includingPropertiesForKeys: [.contentModificationDateKey, .isRegularFileKey],
+            includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
             options: [.skipsHiddenFiles]
         ) else {
             errorMessage = "Could not read notes in this folder."
@@ -46,15 +48,22 @@ final class NoteStore {
         }
 
         var found: [Note] = []
+        var foundFolders: [NoteFolder] = []
         for case let fileURL as URL in enumerator {
+            let values = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey, .isDirectoryKey])
+            if values?.isDirectory == true {
+                let relativePath = fileURL.path.replacingOccurrences(of: root.path + "/", with: "")
+                foundFolders.append(NoteFolder(url: fileURL, relativePath: relativePath))
+                continue
+            }
             guard fileURL.pathExtension.lowercased() == "md" else { continue }
-            let values = try? fileURL.resourceValues(forKeys: [.contentModificationDateKey])
             let modified = values?.contentModificationDate ?? .distantPast
             let name = fileURL.deletingPathExtension().lastPathComponent
             found.append(Note(title: name, fileURL: fileURL, modifiedAt: modified))
         }
         found.sort { $0.modifiedAt > $1.modifiedAt }
         notes = found
+        folders = foundFolders.sorted { $0.relativePath.localizedStandardCompare($1.relativePath) == .orderedAscending }
 
         if let selected = selectedNoteID, !notes.contains(where: { $0.id == selected }) {
             selectedNoteID = notes.first?.id
@@ -91,6 +100,25 @@ final class NoteStore {
             if let created = notes.first(where: { $0.fileURL == url }) {
                 select(created)
             }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func createFolder(named name: String) {
+        let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedName.isEmpty else { return }
+        guard !cleanedName.contains("/"), !cleanedName.contains(":") else {
+            errorMessage = "Folder names cannot contain / or :."
+            return
+        }
+        guard let root = vault?.startAccessingVault() else { return }
+        defer { vault?.stopAccessingVault() }
+
+        let folderURL = root.appendingPathComponent(cleanedName, isDirectory: true)
+        do {
+            try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: false)
+            reload()
         } catch {
             errorMessage = error.localizedDescription
         }
