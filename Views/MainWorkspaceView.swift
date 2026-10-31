@@ -4,7 +4,6 @@ struct MainWorkspaceView: View {
     @Environment(VaultService.self) private var vault
     @Bindable var noteStore: NoteStore
 
-    @State private var showPreview = true
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
 
     var body: some View {
@@ -42,7 +41,7 @@ struct MainWorkspaceView: View {
             }
         } detail: {
             if noteStore.selectedNote != nil {
-                NoteEditorView(noteStore: noteStore, showPreview: $showPreview)
+                NoteEditorView(noteStore: noteStore)
             } else {
                 ContentUnavailableView(
                     "No note selected",
@@ -67,11 +66,6 @@ struct MainWorkspaceView: View {
                     }
                 } label: {
                     Label("Vault", systemImage: "folder")
-                }
-            }
-            ToolbarItem(placement: .automatic) {
-                Toggle(isOn: $showPreview) {
-                    Label("Preview", systemImage: "eye")
                 }
             }
         }

@@ -5,7 +5,7 @@ import Foundation
 final class NoteStore {
     private(set) var notes: [Note] = []
     var selectedNoteID: String?
-    var editorText = ""
+    var editorBlocks: [Block] = [Block()]
     private(set) var isLoading = false
     var errorMessage: String?
 
@@ -26,7 +26,7 @@ final class NoteStore {
         guard let root = vault?.startAccessingVault() else {
             notes = []
             selectedNoteID = nil
-            editorText = ""
+            editorBlocks = [Block()]
             return
         }
         defer { vault?.stopAccessingVault() }
@@ -84,7 +84,7 @@ final class NoteStore {
             index += 1
         }
 
-        let initial = "# \(base)\n\n"
+        let initial = MarkdownCodec.serialize([Block(kind: .heading1, text: base)])
         do {
             try initial.write(to: url, atomically: true, encoding: .utf8)
             reload()
@@ -104,7 +104,7 @@ final class NoteStore {
         do {
             try FileManager.default.removeItem(at: note.fileURL)
             selectedNoteID = nil
-            editorText = ""
+            editorBlocks = [Block()]
             loadedFileURL = nil
             reload()
         } catch {
@@ -112,14 +112,14 @@ final class NoteStore {
         }
     }
 
-    func updateEditorText(_ text: String) {
-        editorText = text
+    func commitEditorBlocks(_ blocks: [Block]) {
+        editorBlocks = blocks
         scheduleSave()
     }
 
     private func loadSelectedNoteContent() {
         guard let note = selectedNote else {
-            editorText = ""
+            editorBlocks = [Block()]
             loadedFileURL = nil
             return
         }
@@ -127,7 +127,8 @@ final class NoteStore {
         defer { vault?.stopAccessingVault() }
 
         do {
-            editorText = try String(contentsOf: note.fileURL, encoding: .utf8)
+            let text = try String(contentsOf: note.fileURL, encoding: .utf8)
+            editorBlocks = MarkdownCodec.parse(text)
             loadedFileURL = note.fileURL
         } catch {
             errorMessage = error.localizedDescription
@@ -153,10 +154,11 @@ final class NoteStore {
         guard vault?.startAccessingVault() != nil else { return }
         defer { vault?.stopAccessingVault() }
 
+        let markdown = MarkdownCodec.serialize(editorBlocks)
         do {
-            try editorText.write(to: fileURL, atomically: true, encoding: .utf8)
+            try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
             let filename = fileURL.deletingPathExtension().lastPathComponent
-            let title = Note.title(from: editorText, fallback: filename)
+            let title = Note.title(from: markdown, fallback: filename)
             if let idx = notes.firstIndex(where: { $0.id == note.id }) {
                 notes[idx].title = title
                 notes[idx].modifiedAt = Date()
