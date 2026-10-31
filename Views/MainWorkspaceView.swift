@@ -15,6 +15,14 @@ struct MainWorkspaceView: View {
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
             List(selection: $noteStore.selectedNoteID) {
+                Label(vaultTitle, systemImage: "externaldrive")
+                    .contentShape(Rectangle())
+                    .background(selectedFolderURL == nil ? Color.accentColor.opacity(0.16) : .clear)
+                    .onTapGesture {
+                        selectedFolderURL = nil
+                        noteStore.selectedNoteID = nil
+                    }
+
                 ForEach(folderTree) { node in
                     FolderTreeRow(
                         node: node,
