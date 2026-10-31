@@ -2,7 +2,7 @@ import SwiftUI
 
 struct BlockEditorView: View {
     @Bindable var noteStore: NoteStore
-    @FocusState private var focusedBlockID: UUID?
+    @State private var focusedBlockID: UUID?
     @State private var slashStates: [UUID: SlashCommandState] = [:]
     @State private var selectedSlashCommandIndices: [UUID: Int] = [:]
 
@@ -39,11 +39,6 @@ struct BlockEditorView: View {
         }
         #if os(macOS)
         .onKeyPress(phases: .down) { press in
-            if press.key == .delete {
-                deleteEmptyFocusedBlock()
-                return .ignored
-            }
-
             guard let blockID = focusedBlockID, slashStates[blockID] != nil else {
                 return .ignored
             }
@@ -76,7 +71,7 @@ struct BlockEditorView: View {
     @ViewBuilder
     private func blockRow(at index: Int, block: Block) -> some View {
         BlockRowView(
-            block: binding(for: index),
+            block: binding(for: block),
             listMarker: listMarker(for: block, at: index),
             slashState: slashStates[block.id],
             selectedSlashCommandIndex: selectedSlashCommandIndices[block.id] ?? 0,
@@ -95,14 +90,33 @@ struct BlockEditorView: View {
                 } else {
                     insertBlock(after: block.id, kind: .paragraph)
                 }
+            },
+            onPressDeleteWhenEmpty: {
+                deleteEmptyFocusedBlock(id: block.id)
+            },
+            onMoveSlashSelection: { offset in
+                guard slashStates[block.id] != nil else { return false }
+                moveSlashCommandSelection(for: block.id, by: offset)
+                return true
+            },
+            onDismissSlashCommand: {
+                guard slashStates[block.id] != nil else { return false }
+                slashStates[block.id] = nil
+                selectedSlashCommandIndices[block.id] = nil
+                return true
             }
         )
     }
 
-    private func binding(for index: Int) -> Binding<Block> {
+    private func binding(for block: Block) -> Binding<Block> {
         Binding(
-            get: { noteStore.editorBlocks[index] },
-            set: { noteStore.editorBlocks[index] = $0 }
+            get: {
+                noteStore.editorBlocks.first(where: { $0.id == block.id }) ?? block
+            },
+            set: { updatedBlock in
+                guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == block.id }) else { return }
+                noteStore.editorBlocks[index] = updatedBlock
+            }
         )
     }
 
@@ -172,17 +186,17 @@ struct BlockEditorView: View {
         focusedBlockID = block.id
     }
 
-    private func deleteEmptyFocusedBlock() {
-        guard let id = focusedBlockID,
-              let index = noteStore.editorBlocks.firstIndex(where: { $0.id == id }),
+    private func deleteEmptyFocusedBlock(id: UUID) -> Bool {
+        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == id }),
               noteStore.editorBlocks[index].text.isEmpty,
               noteStore.editorBlocks.count > 1
-        else { return }
+        else { return false }
 
         let previousID = index > 0 ? noteStore.editorBlocks[index - 1].id : nil
         noteStore.editorBlocks.remove(at: index)
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
         focusedBlockID = previousID ?? noteStore.editorBlocks.first?.id
+        return true
     }
 
     private func moveSlashCommandSelection(for blockID: UUID, by offset: Int) {
