@@ -58,7 +58,10 @@ struct BlockRowView: View {
             #if os(macOS)
             .onKeyPress(phases: .down) { press in
                 guard press.key == .return else { return .ignored }
-                guard !press.modifiers.contains(.shift) else { return .ignored }
+                if press.modifiers.contains(.shift) {
+                    block.text.append("\n")
+                    return .handled
+                }
                 onPressReturn()
                 return .handled
             }
