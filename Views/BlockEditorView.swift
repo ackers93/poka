@@ -11,7 +11,6 @@ struct BlockEditorView: View {
             LazyVStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(noteStore.editorBlocks.enumerated()), id: \.element.id) { index, block in
                     blockRow(at: index, block: block)
-                        .focused($focusedBlockID, equals: block.id)
                 }
 
                 Color.clear
@@ -46,10 +45,6 @@ struct BlockEditorView: View {
             }
 
             guard let blockID = focusedBlockID, slashStates[blockID] != nil else {
-                if press.key == .return, press.modifiers.contains(.command) {
-                    insertBlockAfterFocused()
-                    return .handled
-                }
                 return .ignored
             }
 
@@ -59,9 +54,6 @@ struct BlockEditorView: View {
                 return .handled
             case .downArrow:
                 moveSlashCommandSelection(for: blockID, by: 1)
-                return .handled
-            case .return:
-                selectHighlightedSlashCommand(for: blockID)
                 return .handled
             case .escape:
                 slashStates[blockID] = nil
@@ -73,7 +65,7 @@ struct BlockEditorView: View {
         }
         #endif
         .safeAreaInset(edge: .bottom) {
-            Text("Type / for block types · ⌘↩ for a new block")
+            Text("Type / for block types · ↩ for a new text block · ⇧↩ for a line break")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity)
@@ -89,12 +81,20 @@ struct BlockEditorView: View {
             slashState: slashStates[block.id],
             selectedSlashCommandIndex: selectedSlashCommandIndices[block.id] ?? 0,
             isFocused: focusedBlockID == block.id,
+            focusedBlockID: $focusedBlockID,
             onTextChange: { text in
                 updateSlashState(for: block.id, text: text)
                 noteStore.commitEditorBlocks(noteStore.editorBlocks)
             },
             onSelectSlashCommand: { kind in
                 applySlashCommand(blockID: block.id, kind: kind)
+            },
+            onPressReturn: {
+                if slashStates[block.id] != nil {
+                    selectHighlightedSlashCommand(for: block.id)
+                } else {
+                    insertBlock(after: block.id, kind: .paragraph)
+                }
             }
         )
     }
@@ -155,14 +155,6 @@ struct BlockEditorView: View {
             insertBlock(after: blockID, kind: .paragraph)
         }
         focusedBlockID = blockID
-    }
-
-    private func insertBlockAfterFocused() {
-        guard let id = focusedBlockID else {
-            appendParagraphAtEnd()
-            return
-        }
-        insertBlock(after: id, kind: .paragraph)
     }
 
     private func insertBlock(after blockID: UUID, kind: BlockKind) {

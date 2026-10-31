@@ -6,8 +6,10 @@ struct BlockRowView: View {
     var slashState: SlashCommandState?
     var selectedSlashCommandIndex: Int
     var isFocused: Bool
+    var focusedBlockID: FocusState<UUID?>.Binding
     let onTextChange: (String) -> Void
     let onSelectSlashCommand: (BlockKind) -> Void
+    let onPressReturn: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -49,19 +51,25 @@ struct BlockRowView: View {
             .foregroundStyle(contentColor)
             .lineLimit(usesMultilineField ? 2...30 : 1...4)
             .padding(.vertical, verticalPadding)
+            .focused(focusedBlockID, equals: block.id)
             .onChange(of: block.text) { _, newValue in
                 onTextChange(newValue)
             }
+            #if os(macOS)
+            .onKeyPress(phases: .down) { press in
+                guard press.key == .return else { return .ignored }
+                guard !press.modifiers.contains(.shift) else { return .ignored }
+                onPressReturn()
+                return .handled
+            }
+            #endif
             #if os(iOS)
             .textInputAutocapitalization(.sentences)
             #endif
     }
 
     private var usesMultilineField: Bool {
-        switch block.kind {
-        case .paragraph, .quote, .code: true
-        default: false
-        }
+        true
     }
 
     private var bindingText: Binding<String> {
