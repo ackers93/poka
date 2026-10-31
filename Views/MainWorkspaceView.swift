@@ -11,6 +11,8 @@ struct MainWorkspaceView: View {
     @State private var selectedFolderURL: URL?
     @State private var folderToRename: NoteFolder?
     @State private var renamedFolderName = ""
+    @State private var noteToRename: Note?
+    @State private var renamedNoteName = ""
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -31,14 +33,16 @@ struct MainWorkspaceView: View {
                         isCreatingFolder: $isCreatingFolder,
                         newFolderName: $newFolderName,
                         folderToRename: $folderToRename,
-                        renamedFolderName: $renamedFolderName
+                        renamedFolderName: $renamedFolderName,
+                        onRenameNote: beginRenaming
                     )
                 }
                 ForEach(rootNotes) { note in
                     NoteSidebarRow(
                         note: note,
                         noteStore: noteStore,
-                        selectedFolderURL: $selectedFolderURL
+                        selectedFolderURL: $selectedFolderURL,
+                        onRename: beginRenaming
                     )
                 }
             }
@@ -113,6 +117,21 @@ struct MainWorkspaceView: View {
                     folderToRename = nil
                 }
             }
+            .alert("Rename Note", isPresented: Binding(
+                get: { noteToRename != nil },
+                set: { if !$0 { noteToRename = nil } }
+            )) {
+                TextField("Note name", text: $renamedNoteName)
+                Button("Rename") {
+                    if let note = noteToRename {
+                        noteStore.renameNote(note, to: renamedNoteName)
+                    }
+                    noteToRename = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    noteToRename = nil
+                }
+            }
         } detail: {
             if noteStore.selectedNote != nil {
                 NoteEditorView(noteStore: noteStore)
@@ -179,6 +198,11 @@ struct MainWorkspaceView: View {
             }
     }
 
+    private func beginRenaming(_ note: Note) {
+        noteToRename = note
+        renamedNoteName = note.title
+    }
+
     #if os(macOS)
     private func revealVaultInFinder() {
         guard let url = vault.startAccessingVault() else { return }
@@ -206,6 +230,7 @@ private struct FolderTreeRow: View {
     @Binding var newFolderName: String
     @Binding var folderToRename: NoteFolder?
     @Binding var renamedFolderName: String
+    let onRenameNote: (Note) -> Void
 
     var body: some View {
         if node.children.isEmpty && node.notes.isEmpty {
@@ -220,14 +245,16 @@ private struct FolderTreeRow: View {
                         isCreatingFolder: $isCreatingFolder,
                         newFolderName: $newFolderName,
                         folderToRename: $folderToRename,
-                        renamedFolderName: $renamedFolderName
+                        renamedFolderName: $renamedFolderName,
+                        onRenameNote: onRenameNote
                     )
                 }
                 ForEach(node.notes) { note in
                     NoteSidebarRow(
                         note: note,
                         noteStore: noteStore,
-                        selectedFolderURL: $selectedFolderURL
+                        selectedFolderURL: $selectedFolderURL,
+                        onRename: onRenameNote
                     )
                 }
             } label: {
@@ -271,9 +298,10 @@ private struct NoteSidebarRow: View {
     let note: Note
     let noteStore: NoteStore
     @Binding var selectedFolderURL: URL?
+    let onRename: (Note) -> Void
 
     var body: some View {
-        Text(note.title)
+        Text(note.frontmatter.icon.map { "\($0) \(note.title)" } ?? note.title)
             .tag(note.id)
             .contentShape(Rectangle())
             .onTapGesture {
@@ -282,6 +310,11 @@ private struct NoteSidebarRow: View {
             }
             .onDrag {
                 NSItemProvider(object: note.id as NSString)
+            }
+            .contextMenu {
+                Button("Rename Note") {
+                    onRename(note)
+                }
             }
     }
 }

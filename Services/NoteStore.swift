@@ -13,6 +13,7 @@ final class NoteStore {
     private var vault: VaultService?
     private var saveTask: Task<Void, Never>?
     private var loadedFileURL: URL?
+    private var loadedFrontmatter: NoteFrontmatter = .empty
 
     var selectedNote: Note? {
         guard let id = selectedNoteID else { return nil }
@@ -59,7 +60,9 @@ final class NoteStore {
             guard fileURL.pathExtension.lowercased() == "md" else { continue }
             let modified = values?.contentModificationDate ?? .distantPast
             let name = fileURL.deletingPathExtension().lastPathComponent
-            found.append(Note(title: name, fileURL: fileURL, modifiedAt: modified))
+            let document = (try? String(contentsOf: fileURL, encoding: .utf8)).map(MarkdownDocument.parse)
+            let title = document?.frontmatter.name ?? Note.title(from: document?.body ?? "", fallback: name)
+            found.append(Note(title: title, fileURL: fileURL, modifiedAt: modified, frontmatter: document?.frontmatter ?? .empty))
         }
         found.sort { $0.modifiedAt > $1.modifiedAt }
         notes = found
@@ -95,7 +98,9 @@ final class NoteStore {
             index += 1
         }
 
-        let initial = MarkdownCodec.serialize([Block(kind: .heading1, text: base)])
+        let date = Self.metadataDate()
+        let frontmatter = NoteFrontmatter.empty.updating(name: base, created: date, updated: date)
+        let initial = frontmatter.rendered(with: MarkdownCodec.serialize([Block(kind: .heading1, text: base)]))
         do {
             try initial.write(to: url, atomically: true, encoding: .utf8)
             reload()
@@ -175,6 +180,30 @@ final class NoteStore {
         }
     }
 
+    func renameNote(_ note: Note, to name: String) {
+        let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedName.isEmpty else { return }
+        guard vault?.startAccessingVault() != nil else { return }
+        defer { vault?.stopAccessingVault() }
+
+        do {
+            let source = try String(contentsOf: note.fileURL, encoding: .utf8)
+            let document = MarkdownDocument.parse(source)
+            let updatedFrontmatter = document.frontmatter.updating(name: cleanedName)
+            try updatedFrontmatter.rendered(with: document.body).write(to: note.fileURL, atomically: true, encoding: .utf8)
+            if let index = notes.firstIndex(where: { $0.id == note.id }) {
+                notes[index].title = cleanedName
+                notes[index].frontmatter = updatedFrontmatter
+                notes[index].modifiedAt = Date()
+            }
+            if loadedFileURL == note.fileURL {
+                loadedFrontmatter = updatedFrontmatter
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
     func deleteSelectedNote() {
         guard let note = selectedNote else { return }
         guard vault?.startAccessingVault() != nil else { return }
@@ -185,6 +214,7 @@ final class NoteStore {
             selectedNoteID = nil
             editorBlocks = [Block()]
             loadedFileURL = nil
+            loadedFrontmatter = .empty
             reload()
         } catch {
             errorMessage = error.localizedDescription
@@ -200,6 +230,7 @@ final class NoteStore {
         guard let note = selectedNote else {
             editorBlocks = [Block()]
             loadedFileURL = nil
+            loadedFrontmatter = .empty
             return
         }
         guard vault?.startAccessingVault() != nil else { return }
@@ -207,8 +238,10 @@ final class NoteStore {
 
         do {
             let text = try String(contentsOf: note.fileURL, encoding: .utf8)
-            editorBlocks = MarkdownCodec.parse(text)
+            let document = MarkdownDocument.parse(text)
+            editorBlocks = MarkdownCodec.parse(document.body)
             loadedFileURL = note.fileURL
+            loadedFrontmatter = document.frontmatter
         } catch {
             errorMessage = error.localizedDescription
         }
@@ -234,16 +267,27 @@ final class NoteStore {
         defer { vault?.stopAccessingVault() }
 
         let markdown = MarkdownCodec.serialize(editorBlocks)
+        let frontmatter = loadedFrontmatter.updating(updated: Self.metadataDate())
         do {
-            try markdown.write(to: fileURL, atomically: true, encoding: .utf8)
+            try frontmatter.rendered(with: markdown).write(to: fileURL, atomically: true, encoding: .utf8)
             let filename = fileURL.deletingPathExtension().lastPathComponent
-            let title = Note.title(from: markdown, fallback: filename)
+            let title = frontmatter.name ?? Note.title(from: markdown, fallback: filename)
             if let idx = notes.firstIndex(where: { $0.id == note.id }) {
                 notes[idx].title = title
                 notes[idx].modifiedAt = Date()
+                notes[idx].frontmatter = frontmatter
             }
+            loadedFrontmatter = frontmatter
         } catch {
             errorMessage = error.localizedDescription
         }
+    }
+
+    private static func metadataDate() -> String {
+        let formatter = DateFormatter()
+        formatter.calendar = Calendar(identifier: .iso8601)
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd"
+        return formatter.string(from: Date())
     }
 }
