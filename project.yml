@@ -1,0 +1,23 @@
+name: Poka
+options:
+  bundleIdPrefix: app.poka
+  deploymentTarget:
+    iOS: "17.0"
+    macOS: "14.0"
+  createIntermediateGroups: true
+targets:
+  Poka:
+    type: application
+    platform: [iOS, macOS]
+    sources:
+      - path: Poka
+    settings:
+      PRODUCT_BUNDLE_IDENTIFIER: app.poka.notes
+      MARKETING_VERSION: "0.1.0"
+      CURRENT_PROJECT_VERSION: "1"
+      GENERATE_INFOPLIST_FILE: YES
+      INFOPLIST_KEY_CFBundleDisplayName: Poka
+      INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.productivity
+      SWIFT_VERSION: "6.0"
+      CODE_SIGN_ENTITLEMENTS[sdk=macosx*]: Poka/Poka-macOS.entitlements
+      ENABLE_HARDENED_RUNTIME: YES

@@ -1,0 +1,448 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		073C72A37BE0B4BF77A03A39 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F24594C8B9C5193A3C7CEA2 /* Note.swift */; };
+		1214DCA52483244421C90784 /* NoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF762A51FF4F12889E9DCF0 /* NoteStore.swift */; };
+		1A9CE88C5B0846CC6C97A112 /* NoteStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3FF762A51FF4F12889E9DCF0 /* NoteStore.swift */; };
+		1AF8517FAA61E2885CA26DF9 /* VaultService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 932C9454691525F9AC566E60 /* VaultService.swift */; };
+		33405C52D2EDA50AD2431320 /* PokaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874734998B202F683698B8C0 /* PokaApp.swift */; };
+		39AC7970AB4536765966F2D5 /* NoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB9A778FD6188A4FB5E6AC5E /* NoteEditorView.swift */; };
+		39D7EB8B747610C8CCF27E04 /* VaultSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E9556D31D1D8C91585D5C7A /* VaultSetupView.swift */; };
+		5418FEC662A1B1E06473808B /* NoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AB9A778FD6188A4FB5E6AC5E /* NoteEditorView.swift */; };
+		5FCDDAF9623416B4BDCEA3D8 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7672C0FC547A745F9A997D9 /* RootView.swift */; };
+		A06C3B87D7ADD5B1AB327A5E /* VaultService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 932C9454691525F9AC566E60 /* VaultService.swift */; };
+		B146C4E6EC1E13464B365EBE /* PokaApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 874734998B202F683698B8C0 /* PokaApp.swift */; };
+		CE075128A474662B57D79D52 /* MainWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273DF9F8D47D9E8BD3241FB /* MainWorkspaceView.swift */; };
+		D20EA68C71288E270BD77940 /* RootView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7672C0FC547A745F9A997D9 /* RootView.swift */; };
+		E024495AA946791A918F6798 /* MainWorkspaceView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9273DF9F8D47D9E8BD3241FB /* MainWorkspaceView.swift */; };
+		E8423AD686149C8B0DD13478 /* Note.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9F24594C8B9C5193A3C7CEA2 /* Note.swift */; };
+		FFFEE315034FD108C90BE0E6 /* VaultSetupView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1E9556D31D1D8C91585D5C7A /* VaultSetupView.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		014A8A7C6D4783EE93549B06 /* Poka.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = Poka.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1E9556D31D1D8C91585D5C7A /* VaultSetupView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultSetupView.swift; sourceTree = "<group>"; };
+		3FF762A51FF4F12889E9DCF0 /* NoteStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteStore.swift; sourceTree = "<group>"; };
+		627D1E7EDD41C59D0649A463 /* Poka.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Poka.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		7B3A378E54BD2841B4A6B50A /* Poka-macOS.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = "Poka-macOS.entitlements"; sourceTree = "<group>"; };
+		874734998B202F683698B8C0 /* PokaApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PokaApp.swift; sourceTree = "<group>"; };
+		9273DF9F8D47D9E8BD3241FB /* MainWorkspaceView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainWorkspaceView.swift; sourceTree = "<group>"; };
+		932C9454691525F9AC566E60 /* VaultService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VaultService.swift; sourceTree = "<group>"; };
+		9F24594C8B9C5193A3C7CEA2 /* Note.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Note.swift; sourceTree = "<group>"; };
+		AB9A778FD6188A4FB5E6AC5E /* NoteEditorView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteEditorView.swift; sourceTree = "<group>"; };
+		B7672C0FC547A745F9A997D9 /* RootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RootView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		01732733566FC275309ABF1D /* Poka */ = {
+			isa = PBXGroup;
+			children = (
+				7B3A378E54BD2841B4A6B50A /* Poka-macOS.entitlements */,
+				874734998B202F683698B8C0 /* PokaApp.swift */,
+				0582614989BB136393FCC735 /* Models */,
+				5593E9A24BF582EF82F1EC6A /* Services */,
+				0C330B6ADD0D8A64C716DC7D /* Views */,
+			);
+			path = Poka;
+			sourceTree = "<group>";
+		};
+		0582614989BB136393FCC735 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				9F24594C8B9C5193A3C7CEA2 /* Note.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		0C330B6ADD0D8A64C716DC7D /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				9273DF9F8D47D9E8BD3241FB /* MainWorkspaceView.swift */,
+				AB9A778FD6188A4FB5E6AC5E /* NoteEditorView.swift */,
+				B7672C0FC547A745F9A997D9 /* RootView.swift */,
+				1E9556D31D1D8C91585D5C7A /* VaultSetupView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		18B160878EED3D0E4DF50181 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				014A8A7C6D4783EE93549B06 /* Poka.app */,
+				627D1E7EDD41C59D0649A463 /* Poka.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5593E9A24BF582EF82F1EC6A /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				3FF762A51FF4F12889E9DCF0 /* NoteStore.swift */,
+				932C9454691525F9AC566E60 /* VaultService.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		7A3DBC3770D77D3074BD8B76 = {
+			isa = PBXGroup;
+			children = (
+				01732733566FC275309ABF1D /* Poka */,
+				18B160878EED3D0E4DF50181 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		C47046995390B051EF8579B8 /* Poka_macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 28CF7BE8A23B1A4CB1D5A8A2 /* Build configuration list for PBXNativeTarget "Poka_macOS" */;
+			buildPhases = (
+				EAA1875D794D2B2379E259FA /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Poka_macOS;
+			packageProductDependencies = (
+			);
+			productName = Poka_macOS;
+			productReference = 627D1E7EDD41C59D0649A463 /* Poka.app */;
+			productType = "com.apple.product-type.application";
+		};
+		E45E3BD943D6819F5F7B95AA /* Poka_iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2A892C2C9A331C3C28C66C32 /* Build configuration list for PBXNativeTarget "Poka_iOS" */;
+			buildPhases = (
+				0EA3C7A0A3F944385BC7DBD7 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Poka_iOS;
+			packageProductDependencies = (
+			);
+			productName = Poka_iOS;
+			productReference = 014A8A7C6D4783EE93549B06 /* Poka.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F7DFD0A35ADC965153B88051 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+				};
+			};
+			buildConfigurationList = 9FFD3D2D1B579869A3138902 /* Build configuration list for PBXProject "Poka" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 7A3DBC3770D77D3074BD8B76;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 18B160878EED3D0E4DF50181 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E45E3BD943D6819F5F7B95AA /* Poka_iOS */,
+				C47046995390B051EF8579B8 /* Poka_macOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		0EA3C7A0A3F944385BC7DBD7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				CE075128A474662B57D79D52 /* MainWorkspaceView.swift in Sources */,
+				073C72A37BE0B4BF77A03A39 /* Note.swift in Sources */,
+				5418FEC662A1B1E06473808B /* NoteEditorView.swift in Sources */,
+				1A9CE88C5B0846CC6C97A112 /* NoteStore.swift in Sources */,
+				33405C52D2EDA50AD2431320 /* PokaApp.swift in Sources */,
+				5FCDDAF9623416B4BDCEA3D8 /* RootView.swift in Sources */,
+				A06C3B87D7ADD5B1AB327A5E /* VaultService.swift in Sources */,
+				FFFEE315034FD108C90BE0E6 /* VaultSetupView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		EAA1875D794D2B2379E259FA /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E024495AA946791A918F6798 /* MainWorkspaceView.swift in Sources */,
+				E8423AD686149C8B0DD13478 /* Note.swift in Sources */,
+				39AC7970AB4536765966F2D5 /* NoteEditorView.swift in Sources */,
+				1214DCA52483244421C90784 /* NoteStore.swift in Sources */,
+				B146C4E6EC1E13464B365EBE /* PokaApp.swift in Sources */,
+				D20EA68C71288E270BD77940 /* RootView.swift in Sources */,
+				1AF8517FAA61E2885CA26DF9 /* VaultService.swift in Sources */,
+				39D7EB8B747610C8CCF27E04 /* VaultSetupView.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		094C44DD3B45886DFABC3D95 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Poka/Poka-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Poka;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.poka.notes;
+				PRODUCT_NAME = Poka;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		41C6BA8E3CFECA3FB067DBF2 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		43AF1167ADD5A096CAE315AA /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Poka/Poka-macOS.entitlements";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Poka;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.poka.notes;
+				PRODUCT_NAME = Poka;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		953AE6EA53A28AC59E2CAE03 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Poka/Poka-macOS.entitlements";
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Poka;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.poka.notes;
+				PRODUCT_NAME = Poka;
+				SDKROOT = iphoneos;
+				SWIFT_VERSION = 6.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A2E6B7E08732467DB977834F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		A7325EE1391700EFF91D42BA /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				"CODE_SIGN_ENTITLEMENTS[sdk=macosx*]" = "Poka/Poka-macOS.entitlements";
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = Poka;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.productivity";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = app.poka.notes;
+				PRODUCT_NAME = Poka;
+				SDKROOT = macosx;
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		28CF7BE8A23B1A4CB1D5A8A2 /* Build configuration list for PBXNativeTarget "Poka_macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A7325EE1391700EFF91D42BA /* Debug */,
+				43AF1167ADD5A096CAE315AA /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		2A892C2C9A331C3C28C66C32 /* Build configuration list for PBXNativeTarget "Poka_iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				953AE6EA53A28AC59E2CAE03 /* Debug */,
+				094C44DD3B45886DFABC3D95 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		9FFD3D2D1B579869A3138902 /* Build configuration list for PBXProject "Poka" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				41C6BA8E3CFECA3FB067DBF2 /* Debug */,
+				A2E6B7E08732467DB977834F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F7DFD0A35ADC965153B88051 /* Project object */;
+}
