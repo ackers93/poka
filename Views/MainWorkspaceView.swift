@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct MainWorkspaceView: View {
     @Environment(VaultService.self) private var vault
@@ -7,6 +8,9 @@ struct MainWorkspaceView: View {
     @State private var columnVisibility: NavigationSplitViewVisibility = .all
     @State private var isCreatingFolder = false
     @State private var newFolderName = ""
+    @State private var selectedFolderURL: URL?
+    @State private var folderToRename: NoteFolder?
+    @State private var renamedFolderName = ""
 
     var body: some View {
         NavigationSplitView(columnVisibility: $columnVisibility) {
@@ -15,6 +19,32 @@ struct MainWorkspaceView: View {
                     Section("Folders") {
                         ForEach(noteStore.folders) { folder in
                             Label(folder.relativePath, systemImage: "folder")
+                                .contentShape(Rectangle())
+                                .background(selectedFolderURL == folder.url ? Color.accentColor.opacity(0.16) : .clear)
+                                .onTapGesture {
+                                    selectedFolderURL = folder.url
+                                    noteStore.selectedNoteID = nil
+                                }
+                                .onDrop(of: [.text], delegate: FolderDropDelegate(folder: folder, noteStore: noteStore))
+                                .contextMenu {
+                                    Button {
+                                        noteStore.createNote(in: folder.url)
+                                    } label: {
+                                        Label("New Note", systemImage: "square.and.pencil")
+                                    }
+                                    Button {
+                                        selectedFolderURL = folder.url
+                                        newFolderName = ""
+                                        isCreatingFolder = true
+                                    } label: {
+                                        Label("New Folder", systemImage: "folder.badge.plus")
+                                    }
+                                    Divider()
+                                    Button("Rename Folder") {
+                                        folderToRename = folder
+                                        renamedFolderName = folder.name
+                                    }
+                                }
                         }
                     }
                 }
@@ -22,16 +52,20 @@ struct MainWorkspaceView: View {
                 ForEach(noteStore.notes) { note in
                     Text(note.title)
                         .tag(note.id)
+                        .onDrag {
+                            NSItemProvider(object: note.id as NSString)
+                        }
                 }
             }
             .navigationTitle(vaultTitle)
             .contextMenu {
                 Button {
-                    noteStore.createNote()
+                    noteStore.createNote(in: selectedFolderURL)
                 } label: {
                     Label("New Note", systemImage: "square.and.pencil")
                 }
                 Button {
+                    newFolderName = ""
                     isCreatingFolder = true
                 } label: {
                     Label("New Folder", systemImage: "folder.badge.plus")
@@ -40,11 +74,12 @@ struct MainWorkspaceView: View {
             .toolbar {
                 ToolbarItemGroup {
                     Button {
-                        noteStore.createNote()
+                        noteStore.createNote(in: selectedFolderURL)
                     } label: {
                         Label("New note", systemImage: "square.and.pencil")
                     }
                     Button {
+                        newFolderName = ""
                         isCreatingFolder = true
                     } label: {
                         Label("New folder", systemImage: "folder.badge.plus")
@@ -69,14 +104,29 @@ struct MainWorkspaceView: View {
             .alert("New Folder", isPresented: $isCreatingFolder) {
                 TextField("Folder name", text: $newFolderName)
                 Button("Create") {
-                    noteStore.createFolder(named: newFolderName)
+                    noteStore.createFolder(named: newFolderName, in: selectedFolderURL)
                     newFolderName = ""
                 }
                 Button("Cancel", role: .cancel) {
                     newFolderName = ""
                 }
             } message: {
-                Text("The folder will be created at the top level of this vault.")
+                Text("The folder will be created in the selected folder.")
+            }
+            .alert("Rename Folder", isPresented: Binding(
+                get: { folderToRename != nil },
+                set: { if !$0 { folderToRename = nil } }
+            )) {
+                TextField("Folder name", text: $renamedFolderName)
+                Button("Rename") {
+                    if let folder = folderToRename {
+                        noteStore.renameFolder(at: folder.url, to: renamedFolderName)
+                    }
+                    folderToRename = nil
+                }
+                Button("Cancel", role: .cancel) {
+                    folderToRename = nil
+                }
             }
         } detail: {
             if noteStore.selectedNote != nil {
@@ -114,7 +164,7 @@ struct MainWorkspaceView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .pokaCreateNote)) { _ in
-            noteStore.createNote()
+            noteStore.createNote(in: selectedFolderURL)
         }
     }
 
@@ -132,6 +182,27 @@ struct MainWorkspaceView: View {
     #else
     private func revealVaultInFinder() {}
     #endif
+}
+
+private struct FolderDropDelegate: DropDelegate {
+    let folder: NoteFolder
+    let noteStore: NoteStore
+
+    func validateDrop(info: DropInfo) -> Bool {
+        info.hasItemsConforming(to: [.text])
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        guard let provider = info.itemProviders(for: [.text]).first else { return false }
+        provider.loadObject(ofClass: NSString.self) { identifier, _ in
+            guard let identifier = identifier as? NSString else { return }
+            let noteID = identifier as String
+            Task { @MainActor in
+                noteStore.moveNote(id: noteID, to: folder.url)
+            }
+        }
+        return true
+    }
 }
 
 #if os(macOS)

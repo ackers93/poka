@@ -79,17 +79,19 @@ final class NoteStore {
         loadSelectedNoteContent()
     }
 
-    func createNote() {
+    func createNote(in folder: URL? = nil) {
         guard let root = vault?.startAccessingVault() else { return }
         defer { vault?.stopAccessingVault() }
+
+        let parent = folder ?? root
 
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd HHmm"
         let base = "Note \(formatter.string(from: Date()))"
-        var url = root.appendingPathComponent("\(base).md", isDirectory: false)
+        var url = parent.appendingPathComponent("\(base).md", isDirectory: false)
         var index = 1
         while FileManager.default.fileExists(atPath: url.path) {
-            url = root.appendingPathComponent("\(base) \(index).md", isDirectory: false)
+            url = parent.appendingPathComponent("\(base) \(index).md", isDirectory: false)
             index += 1
         }
 
@@ -105,7 +107,7 @@ final class NoteStore {
         }
     }
 
-    func createFolder(named name: String) {
+    func createFolder(named name: String, in folder: URL? = nil) {
         let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleanedName.isEmpty else { return }
         guard !cleanedName.contains("/"), !cleanedName.contains(":") else {
@@ -115,9 +117,58 @@ final class NoteStore {
         guard let root = vault?.startAccessingVault() else { return }
         defer { vault?.stopAccessingVault() }
 
-        let folderURL = root.appendingPathComponent(cleanedName, isDirectory: true)
+        let parent = folder ?? root
+        let folderURL = parent.appendingPathComponent(cleanedName, isDirectory: true)
         do {
             try FileManager.default.createDirectory(at: folderURL, withIntermediateDirectories: false)
+            reload()
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func moveNote(id: String, to folder: URL) {
+        guard let note = notes.first(where: { $0.id == id }) else { return }
+        guard vault?.startAccessingVault() != nil else { return }
+        defer { vault?.stopAccessingVault() }
+
+        let destination = folder.appendingPathComponent(note.fileURL.lastPathComponent, isDirectory: false)
+        guard destination != note.fileURL else { return }
+        guard !FileManager.default.fileExists(atPath: destination.path) else {
+            errorMessage = "A note named \(note.fileURL.lastPathComponent) already exists in this folder."
+            return
+        }
+
+        do {
+            try FileManager.default.moveItem(at: note.fileURL, to: destination)
+            reload()
+            if let moved = notes.first(where: { $0.fileURL == destination }) {
+                select(moved)
+            }
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+    }
+
+    func renameFolder(at folder: URL, to name: String) {
+        let cleanedName = name.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !cleanedName.isEmpty else { return }
+        guard !cleanedName.contains("/"), !cleanedName.contains(":") else {
+            errorMessage = "Folder names cannot contain / or :."
+            return
+        }
+        guard vault?.startAccessingVault() != nil else { return }
+        defer { vault?.stopAccessingVault() }
+
+        let destination = folder.deletingLastPathComponent().appendingPathComponent(cleanedName, isDirectory: true)
+        guard destination != folder else { return }
+        guard !FileManager.default.fileExists(atPath: destination.path) else {
+            errorMessage = "A folder named \(cleanedName) already exists here."
+            return
+        }
+
+        do {
+            try FileManager.default.moveItem(at: folder, to: destination)
             reload()
         } catch {
             errorMessage = error.localizedDescription
