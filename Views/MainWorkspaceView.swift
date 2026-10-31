@@ -27,7 +27,11 @@ struct MainWorkspaceView: View {
                     )
                 }
                 ForEach(rootNotes) { note in
-                    NoteSidebarRow(note: note)
+                    NoteSidebarRow(
+                        note: note,
+                        noteStore: noteStore,
+                        selectedFolderURL: $selectedFolderURL
+                    )
                 }
             }
             .navigationTitle(vaultTitle)
@@ -212,7 +216,11 @@ private struct FolderTreeRow: View {
                     )
                 }
                 ForEach(node.notes) { note in
-                    NoteSidebarRow(note: note)
+                    NoteSidebarRow(
+                        note: note,
+                        noteStore: noteStore,
+                        selectedFolderURL: $selectedFolderURL
+                    )
                 }
             } label: {
                 folderLabel
@@ -253,10 +261,17 @@ private struct FolderTreeRow: View {
 
 private struct NoteSidebarRow: View {
     let note: Note
+    let noteStore: NoteStore
+    @Binding var selectedFolderURL: URL?
 
     var body: some View {
         Text(note.title)
             .tag(note.id)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                selectedFolderURL = note.fileURL.deletingLastPathComponent()
+                noteStore.select(note)
+            }
             .onDrag {
                 NSItemProvider(object: note.id as NSString)
             }
