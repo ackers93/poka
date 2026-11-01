@@ -66,6 +66,16 @@ struct NoteFrontmatter: Hashable, Sendable {
         return copy
     }
 
+    func updatingIcon(_ icon: String?) -> NoteFrontmatter {
+        var copy = self
+        if let icon {
+            copy.set("icon", value: Self.quote(icon))
+        } else {
+            copy.remove("icon")
+        }
+        return copy
+    }
+
     func rendered(with body: String) -> String {
         let normalizedBody = body.replacingOccurrences(of: "\r\n", with: "\n")
             .replacingOccurrences(of: "\r", with: "\n")
@@ -87,6 +97,10 @@ struct NoteFrontmatter: Hashable, Sendable {
         } else {
             lines.append(replacement)
         }
+    }
+
+    private mutating func remove(_ key: String) {
+        lines.removeAll { $0.hasPrefix("\(key):") }
     }
 
     private static func quote(_ value: String) -> String {

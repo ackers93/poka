@@ -241,6 +241,18 @@ final class NoteStore {
         scheduleSave()
     }
 
+    func setSelectedNoteIcon(_ icon: String?) {
+        guard let note = selectedNote, loadedFileURL == note.fileURL else { return }
+
+        saveTask?.cancel()
+        let frontmatter = loadedFrontmatter.updatingIcon(icon)
+        loadedFrontmatter = frontmatter
+        if let index = notes.firstIndex(where: { $0.id == note.id }) {
+            notes[index].frontmatter = frontmatter
+        }
+        Task { await saveEditorIfNeeded() }
+    }
+
     private func loadSelectedNoteContent() {
         guard let note = selectedNote else {
             editorBlocks = [Block()]

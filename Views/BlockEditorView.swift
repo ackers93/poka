@@ -24,6 +24,13 @@ struct BlockEditorView: View {
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .navigationTitle(noteStore.selectedNote?.title ?? "Note")
+        .toolbar {
+            ToolbarItem(placement: .navigation) {
+                NoteIconPicker(icon: noteStore.selectedNote?.frontmatter.icon) { icon in
+                    noteStore.setSelectedNoteIcon(icon)
+                }
+            }
+        }
         #if os(macOS)
         .navigationSubtitle(noteStore.selectedNote?.fileURL.lastPathComponent ?? "")
         #endif
@@ -212,6 +219,108 @@ struct BlockEditorView: View {
         let options = SlashCommandMenu.options(matching: slashState.filter)
         guard let kind = options[safe: selectedSlashCommandIndices[blockID] ?? 0] else { return }
         applySlashCommand(blockID: blockID, kind: kind)
+    }
+}
+
+private struct NoteIconPicker: View {
+    let icon: String?
+    let onSelect: (String?) -> Void
+
+    @State private var isPresented = false
+
+    var body: some View {
+        Button {
+            isPresented = true
+        } label: {
+            Text(icon ?? "📝")
+                .font(.system(size: 18))
+                .frame(width: 26, height: 26)
+                .contentShape(RoundedRectangle(cornerRadius: 7))
+        }
+        .buttonStyle(.plain)
+        .popover(isPresented: $isPresented, arrowEdge: .bottom) {
+            EmojiPalette(selectedIcon: icon) { emoji in
+                onSelect(emoji)
+                isPresented = false
+            }
+        }
+        .help("Choose note icon")
+        .accessibilityLabel("Choose note icon")
+    }
+}
+
+private struct EmojiPalette: View {
+    let selectedIcon: String?
+    let onSelect: (String?) -> Void
+
+    @State private var query = ""
+    @State private var category = "Frequently used"
+
+    private let categories: [(name: String, icon: String, emojis: [String])] = [
+        ("Frequently used", "clock", ["😀", "😊", "😂", "🥰", "😍", "😎", "🤔", "😭", "👍", "👋", "❤️", "🔥", "✨", "⭐️", "✅", "❌", "🎉", "🚀", "💡", "📌", "📝", "📚", "💼", "🏠", "☕️", "🎵", "🌱", "🌍", "⚙️", "🔒"]),
+        ("Smileys & people", "face.smiling", ["😀", "😃", "😄", "😁", "😆", "🥹", "😅", "😂", "🙂", "🙃", "🫠", "😉", "😊", "😇", "🥰", "😍", "🤩", "😘", "😗", "☺️", "😚", "😋", "😛", "😜", "🤪", "😎", "🥳", "🤓", "🧐", "🤠", "🥸", "🤗", "🫡", "🤔", "🫢", "🤭", "🤫", "🤥", "😶", "😐", "😑", "😬", "🫤", "🙄", "😏", "😣", "😥", "😮", "🤐", "😯", "😪", "😫", "🥱", "😴", "😌", "🤤", "😓", "😔", "😕", "🫨", "😲", "☹️", "🙁", "😖", "😞", "😟", "😤", "😢", "😭", "😦", "😧", "😨", "😩", "🤯", "😬", "😰", "😱", "🥵", "🥶", "😳", "🤪", "😵", "😡", "😠", "🤬", "😈", "💀", "☠️", "👋", "🤚", "🖐️", "✋", "🫱", "🫲", "👌", "🤌", "🤏", "✌️", "🤞", "🫶", "🤟", "🤘", "🤙", "👈", "👉", "👆", "👇", "☝️", "👍", "👎", "✊", "👊", "🤝", "🙏", "💪", "❤️", "🧡", "💛", "💚", "💙", "💜", "🖤", "🤍", "🤎", "💔", "❣️", "💕", "💖", "💗", "💓", "💞", "💘"]),
+        ("Animals & nature", "leaf", ["🐶", "🐱", "🐭", "🐹", "🐰", "🦊", "🐻", "🐼", "🐨", "🐯", "🦁", "🐮", "🐷", "🐸", "🐵", "🐔", "🐧", "🐦", "🦄", "🐝", "🦋", "🐢", "🐙", "🐳", "🐬", "🌸", "🌹", "🌺", "🌻", "🌼", "🌷", "🌱", "🪴", "🌲", "🌳", "🌴", "🍀", "☘️", "🌿", "🍁", "🍂", "🍄", "🌍", "🌎", "🌏", "🌙", "⭐️", "🌟", "✨", "⚡️", "🔥", "🌈", "☀️", "🌤️", "⛅️", "🌧️", "❄️"]),
+        ("Food & drink", "fork.knife", ["🍏", "🍎", "🍐", "🍊", "🍋", "🍌", "🍉", "🍇", "🍓", "🫐", "🍈", "🍒", "🍑", "🥭", "🍍", "🥥", "🥝", "🍅", "🥑", "🥦", "🥕", "🌽", "🌶️", "🥐", "🍞", "🧀", "🥚", "🍔", "🍟", "🍕", "🌭", "🌮", "🌯", "🥗", "🍝", "🍜", "🍣", "🍱", "🍙", "🍘", "🍰", "🎂", "🍪", "🍫", "🍬", "🍩", "☕️", "🫖", "🍵", "🧃", "🥤", "🍺", "🍷", "🍸"]),
+        ("Activities", "gamecontroller", ["⚽️", "🏀", "🏈", "⚾️", "🎾", "🏐", "🏆", "🥇", "🏅", "🎯", "🎮", "🎲", "🧩", "🎨", "🎭", "🎬", "🎤", "🎧", "🎼", "🎵", "🎹", "🥁", "🎸", "📷", "🎥", "✈️", "🚀", "🛸", "🚲", "🏕️", "🏖️", "🗺️"]),
+        ("Objects", "lightbulb", ["⌚️", "📱", "💻", "⌨️", "🖥️", "🖨️", "💡", "🔦", "📚", "📖", "📝", "📌", "📍", "📎", "🔗", "📁", "📂", "🗂️", "📅", "📆", "🗓️", "✏️", "🖊️", "🖋️", "✂️", "📏", "🔒", "🔑", "🔨", "🛠️", "⚙️", "🧰", "🧲", "🧪", "💊", "💰", "💳", "🎁", "🎈", "🪄", "🧸", "🛋️", "🛏️", "🚪", "🪴"]),
+        ("Symbols", "number", ["✅", "☑️", "✔️", "❌", "❎", "➕", "➖", "➗", "✖️", "‼️", "⁉️", "❓", "❗️", "〽️", "⚠️", "🚫", "♻️", "🔱", "📛", "🔰", "⭕️", "🛑", "💯", "💢", "♠️", "♥️", "♦️", "♣️", "🔔", "🔕", "🔇", "🔊", "📶", "♻️", "⚜️", "🔆", "🔅"])
+    ]
+
+    private var shownEmojis: [String] {
+        let emojis = categories.first(where: { $0.name == category })?.emojis ?? []
+        guard !query.isEmpty else { return emojis }
+        return categories.flatMap(\.emojis).filter { $0.localizedCaseInsensitiveContains(query) }
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text("Choose an icon")
+                    .font(.headline)
+                Spacer()
+                Button("Remove") { onSelect(nil) }
+                    .disabled(selectedIcon == nil)
+            }
+            .padding()
+
+            TextField("Search emoji", text: $query)
+                .textFieldStyle(.roundedBorder)
+                .padding(.horizontal)
+                .padding(.bottom, 10)
+
+            HStack(spacing: 3) {
+                ForEach(categories, id: \.name) { item in
+                    Button {
+                        category = item.name
+                        query = ""
+                    } label: {
+                        Image(systemName: item.icon)
+                            .frame(width: 28, height: 26)
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(category == item.name ? Color.accentColor : .secondary)
+                    .help(item.name)
+                }
+            }
+            .padding(.horizontal)
+            .padding(.bottom, 8)
+
+            ScrollView {
+                LazyVGrid(columns: Array(repeating: GridItem(.fixed(34)), count: 8), spacing: 4) {
+                    ForEach(shownEmojis, id: \.self) { emoji in
+                        Button { onSelect(emoji) } label: {
+                            Text(emoji)
+                                .font(.system(size: 22))
+                                .frame(width: 34, height: 34)
+                                .background(selectedIcon == emoji ? Color.accentColor.opacity(0.2) : .clear, in: RoundedRectangle(cornerRadius: 6))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding()
+            }
+        }
+        .frame(width: 340, height: 410)
     }
 }
 
