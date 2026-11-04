@@ -116,6 +116,9 @@ struct BlockEditorView: View {
             onPressDeleteDivider: {
                 deleteDivider(id: block.id)
             },
+            onPressReturnFromDivider: {
+                insertBlock(after: block.id, kind: .paragraph)
+            },
             onMoveSlashSelection: { offset in
                 guard slashStates[block.id] != nil else { return false }
                 moveSlashCommandSelection(for: block.id, by: offset)

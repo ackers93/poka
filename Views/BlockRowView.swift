@@ -15,6 +15,7 @@ struct BlockRowView: View {
     let onPressReturn: () -> Void
     let onPressDeleteWhenEmpty: () -> Bool
     let onPressDeleteDivider: () -> Bool
+    let onPressReturnFromDivider: () -> Void
     let onMoveSlashSelection: (Int) -> Bool
     let onDismissSlashCommand: () -> Bool
     let onAddBlock: () -> Void
@@ -51,7 +52,8 @@ struct BlockRowView: View {
                         isFocused: isFocused,
                         focusedBlockID: focusedBlockID,
                         blockID: block.id,
-                        onPressDelete: onPressDeleteDivider
+                        onPressDelete: onPressDeleteDivider,
+                        onPressReturn: onPressReturnFromDivider
                     )
                     #else
                     Rectangle()
@@ -218,17 +220,20 @@ private struct MacDividerView: NSViewRepresentable {
     var focusedBlockID: Binding<UUID?>
     let blockID: UUID
     let onPressDelete: () -> Bool
+    let onPressReturn: () -> Void
 
     func makeNSView(context: Context) -> DividerNSView {
         let view = DividerNSView()
         view.onFocus = { focusedBlockID.wrappedValue = blockID }
         view.onPressDelete = onPressDelete
+        view.onPressReturn = onPressReturn
         return view
     }
 
     func updateNSView(_ view: DividerNSView, context: Context) {
         view.onFocus = { focusedBlockID.wrappedValue = blockID }
         view.onPressDelete = onPressDelete
+        view.onPressReturn = onPressReturn
         if isFocused, view.window?.firstResponder !== view {
             DispatchQueue.main.async {
                 _ = view.window?.makeFirstResponder(view)
@@ -240,6 +245,7 @@ private struct MacDividerView: NSViewRepresentable {
 private final class DividerNSView: NSView {
     var onFocus: () -> Void = {}
     var onPressDelete: () -> Bool = { false }
+    var onPressReturn: () -> Void = {}
 
     override var acceptsFirstResponder: Bool { true }
 
@@ -258,7 +264,11 @@ private final class DividerNSView: NSView {
     }
 
     override func keyDown(with event: NSEvent) {
-        if event.keyCode == 51 || event.keyCode == 117, onPressDelete() {
+        if event.keyCode == 36, !event.modifierFlags.contains(.shift) {
+            onPressReturn()
+            return
+        }
+        if (event.keyCode == 51 || event.keyCode == 117), onPressDelete() {
             return
         }
         super.keyDown(with: event)
