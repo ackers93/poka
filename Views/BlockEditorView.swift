@@ -1,22 +1,34 @@
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct BlockEditorView: View {
     @Bindable var noteStore: NoteStore
     @State private var focusedBlockID: UUID?
     @State private var slashStates: [UUID: SlashCommandState] = [:]
     @State private var selectedSlashCommandIndices: [UUID: Int] = [:]
+    @State private var draggedBlockID: UUID?
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 2) {
                 ForEach(Array(noteStore.editorBlocks.enumerated()), id: \.element.id) { index, block in
                     blockRow(at: index, block: block)
+                        .onDrop(of: [.text], delegate: BlockDropDelegate(
+                            destinationID: block.id,
+                            draggedBlockID: $draggedBlockID,
+                            moveBlock: moveBlock
+                        ))
                 }
 
                 Color.clear
                     .frame(height: 120)
                     .contentShape(Rectangle())
                     .onTapGesture { appendParagraphAtEnd() }
+                    .onDrop(of: [.text], delegate: BlockDropDelegate(
+                        destinationID: nil,
+                        draggedBlockID: $draggedBlockID,
+                        moveBlock: moveBlock
+                    ))
             }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
@@ -111,6 +123,15 @@ struct BlockEditorView: View {
                 slashStates[block.id] = nil
                 selectedSlashCommandIndices[block.id] = nil
                 return true
+            },
+            onAddBlock: {
+                insertBlock(after: block.id, kind: .paragraph)
+            },
+            onChangeKind: { kind in
+                changeBlockKind(blockID: block.id, to: kind)
+            },
+            onDragStart: {
+                draggedBlockID = block.id
             }
         )
     }
@@ -163,10 +184,7 @@ struct BlockEditorView: View {
         if let slash = slashStates[blockID] {
             block.text = String(block.text.dropLast(slash.suffixLength))
         }
-        block.kind = kind
-        if kind == .divider {
-            block.text = ""
-        }
+        updateBlockKind(&block, to: kind)
         noteStore.editorBlocks[index] = block
         slashStates[blockID] = nil
         selectedSlashCommandIndices[blockID] = nil
@@ -176,6 +194,26 @@ struct BlockEditorView: View {
             insertBlock(after: blockID, kind: .paragraph)
         }
         focusedBlockID = blockID
+    }
+
+    private func changeBlockKind(blockID: UUID, to kind: BlockKind) {
+        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == blockID }) else { return }
+        var block = noteStore.editorBlocks[index]
+        updateBlockKind(&block, to: kind)
+        noteStore.editorBlocks[index] = block
+        noteStore.commitEditorBlocks(noteStore.editorBlocks)
+        focusedBlockID = blockID
+
+        if kind == .divider {
+            insertBlock(after: blockID, kind: .paragraph)
+        }
+    }
+
+    private func updateBlockKind(_ block: inout Block, to kind: BlockKind) {
+        block.kind = kind
+        if kind == .divider {
+            block.text = ""
+        }
     }
 
     private func insertBlock(after blockID: UUID, kind: BlockKind) {
@@ -206,6 +244,22 @@ struct BlockEditorView: View {
         return true
     }
 
+    private func moveBlock(from sourceID: UUID, before destinationID: UUID?) {
+        guard sourceID != destinationID,
+              let sourceIndex = noteStore.editorBlocks.firstIndex(where: { $0.id == sourceID })
+        else { return }
+
+        let block = noteStore.editorBlocks.remove(at: sourceIndex)
+        if let destinationID,
+           let destinationIndex = noteStore.editorBlocks.firstIndex(where: { $0.id == destinationID }) {
+            noteStore.editorBlocks.insert(block, at: destinationIndex)
+        } else {
+            noteStore.editorBlocks.append(block)
+        }
+        noteStore.commitEditorBlocks(noteStore.editorBlocks)
+        focusedBlockID = sourceID
+    }
+
     private func moveSlashCommandSelection(for blockID: UUID, by offset: Int) {
         guard let slashState = slashStates[blockID] else { return }
         let options = SlashCommandMenu.options(matching: slashState.filter)
@@ -219,6 +273,26 @@ struct BlockEditorView: View {
         let options = SlashCommandMenu.options(matching: slashState.filter)
         guard let kind = options[safe: selectedSlashCommandIndices[blockID] ?? 0] else { return }
         applySlashCommand(blockID: blockID, kind: kind)
+    }
+}
+
+private struct BlockDropDelegate: DropDelegate {
+    let destinationID: UUID?
+    @Binding var draggedBlockID: UUID?
+    let moveBlock: (UUID, UUID?) -> Void
+
+    func dropEntered(info: DropInfo) {
+        guard let sourceID = draggedBlockID, sourceID != destinationID else { return }
+        moveBlock(sourceID, destinationID)
+    }
+
+    func performDrop(info: DropInfo) -> Bool {
+        draggedBlockID = nil
+        return true
+    }
+
+    func dropUpdated(info: DropInfo) -> DropProposal? {
+        DropProposal(operation: .move)
     }
 }
 

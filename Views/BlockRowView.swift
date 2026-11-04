@@ -16,10 +16,24 @@ struct BlockRowView: View {
     let onPressDeleteWhenEmpty: () -> Bool
     let onMoveSlashSelection: (Int) -> Bool
     let onDismissSlashCommand: () -> Bool
+    let onAddBlock: () -> Void
+    let onChangeKind: (BlockKind) -> Void
+    let onDragStart: () -> Void
+
+    @State private var isHovering = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 8) {
+                BlockControls(
+                    isVisible: isFocused || isHovering,
+                    currentKind: block.kind,
+                    onAddBlock: onAddBlock,
+                    onChangeKind: onChangeKind,
+                    onDragStart: onDragStart,
+                    blockID: block.id
+                )
+
                 if let listMarker {
                     Text(listMarker)
                         .font(markerFont)
@@ -47,6 +61,11 @@ struct BlockRowView: View {
                 .padding(.top, 4)
             }
         }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            focusedBlockID.wrappedValue = block.id
+        }
+        .onHover { isHovering = $0 }
     }
 
     @ViewBuilder
@@ -120,6 +139,54 @@ struct BlockRowView: View {
 
     private var markerTopPadding: CGFloat {
         block.kind == .heading1 ? 10 : 6
+    }
+}
+
+private struct BlockControls: View {
+    let isVisible: Bool
+    let currentKind: BlockKind
+    let onAddBlock: () -> Void
+    let onChangeKind: (BlockKind) -> Void
+    let onDragStart: () -> Void
+    let blockID: UUID
+
+    var body: some View {
+        HStack(spacing: 2) {
+            Button(action: onAddBlock) {
+                Image(systemName: "plus")
+                    .frame(width: 22, height: 22)
+            }
+            .buttonStyle(.plain)
+            .help("Add block below")
+            .accessibilityLabel("Add block below")
+
+            Menu {
+                ForEach(BlockKind.allCases) { kind in
+                    Button {
+                        onChangeKind(kind)
+                    } label: {
+                        Label(kind.menuTitle, systemImage: kind.systemImage)
+                    }
+                    .disabled(kind == currentKind)
+                }
+            } label: {
+                Image(systemName: "circle.grid.2x2.fill")
+                    .font(.system(size: 12, weight: .medium))
+                    .frame(width: 22, height: 22)
+            }
+            .menuStyle(.borderlessButton)
+            .help("Drag to move · Click to change block type")
+            .accessibilityLabel("Move or change block type")
+            .onDrag {
+                onDragStart()
+                return NSItemProvider(object: blockID.uuidString as NSString)
+            }
+        }
+        .foregroundStyle(.tertiary)
+        .frame(width: 46, alignment: .leading)
+        .opacity(isVisible ? 1 : 0)
+        .allowsHitTesting(isVisible)
+        .animation(.easeOut(duration: 0.12), value: isVisible)
     }
 }
 
