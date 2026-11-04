@@ -22,6 +22,8 @@ struct BlockRowView: View {
     let onChangeKind: (BlockKind) -> Void
     let onDeleteBlock: () -> Void
     let onDragStart: () -> Void
+    let isToggleExpanded: Bool
+    let onToggleExpanded: () -> Void
 
     @State private var isHovering = false
 
@@ -46,7 +48,16 @@ struct BlockRowView: View {
                         .padding(.top, markerTopPadding)
                 }
 
-                if block.kind == .divider {
+                if block.kind == .toggle {
+                    Button(action: onToggleExpanded) {
+                        Image(systemName: isToggleExpanded ? "chevron.down" : "chevron.right")
+                            .font(.caption.weight(.semibold))
+                            .frame(width: 14, height: 22)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                    field
+                } else if block.kind == .divider {
                     #if os(macOS)
                     MacDividerView(
                         isFocused: isFocused,
@@ -175,8 +186,8 @@ private struct BlockControls: View {
                     .frame(width: 22, height: 22)
             }
             .buttonStyle(.plain)
-            .help("Add block below")
-            .accessibilityLabel("Add block below")
+            .help(currentKind == .toggle ? "Add nested block" : "Add block below")
+            .accessibilityLabel(currentKind == .toggle ? "Add nested block" : "Add block below")
 
             Menu {
                 ForEach(BlockKind.allCases) { kind in

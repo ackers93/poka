@@ -10,6 +10,7 @@ enum BlockKind: String, CaseIterable, Identifiable, Codable {
     case quote
     case code
     case divider
+    case toggle
 
     var id: String { rawValue }
 
@@ -24,6 +25,7 @@ enum BlockKind: String, CaseIterable, Identifiable, Codable {
         case .quote: "Quote"
         case .code: "Code"
         case .divider: "Divider"
+        case .toggle: "Toggle"
         }
     }
 
@@ -38,6 +40,7 @@ enum BlockKind: String, CaseIterable, Identifiable, Codable {
         case .quote: ["quote", "blockquote"]
         case .code: ["code", "snippet"]
         case .divider: ["divider", "line", "hr", "---"]
+        case .toggle: ["toggle", "dropdown", "details", "collapse", "nested"]
         }
     }
 
@@ -52,6 +55,7 @@ enum BlockKind: String, CaseIterable, Identifiable, Codable {
         case .quote: "text.quote"
         case .code: "chevron.left.forwardslash.chevron.right"
         case .divider: "minus"
+        case .toggle: "chevron.right"
         }
     }
 }
@@ -60,11 +64,13 @@ struct Block: Identifiable, Equatable, Codable {
     let id: UUID
     var kind: BlockKind
     var text: String
+    var children: [Block]
 
-    init(id: UUID = UUID(), kind: BlockKind = .paragraph, text: String = "") {
+    init(id: UUID = UUID(), kind: BlockKind = .paragraph, text: String = "", children: [Block] = []) {
         self.id = id
         self.kind = kind
         self.text = text
+        self.children = children
     }
 }
 

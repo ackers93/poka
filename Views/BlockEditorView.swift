@@ -7,18 +7,12 @@ struct BlockEditorView: View {
     @State private var slashStates: [UUID: SlashCommandState] = [:]
     @State private var selectedSlashCommandIndices: [UUID: Int] = [:]
     @State private var draggedBlockID: UUID?
+    @State private var expandedToggleIDs: Set<UUID> = []
 
     var body: some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: 2) {
-                ForEach(Array(noteStore.editorBlocks.enumerated()), id: \.element.id) { index, block in
-                    blockRow(at: index, block: block)
-                        .onDrop(of: [.text], delegate: BlockDropDelegate(
-                            destinationID: block.id,
-                            draggedBlockID: $draggedBlockID,
-                            moveBlock: moveBlock
-                        ))
-                }
+                blockTree(noteStore.editorBlocks)
 
                 Color.clear
                     .frame(height: 120)
@@ -54,6 +48,7 @@ struct BlockEditorView: View {
         .onChange(of: noteStore.selectedNoteID) { _, _ in
             slashStates = [:]
             selectedSlashCommandIndices = [:]
+            expandedToggleIDs = []
             focusedBlockID = noteStore.editorBlocks.first?.id
         }
         #if os(macOS)
@@ -87,11 +82,32 @@ struct BlockEditorView: View {
         }
     }
 
-    @ViewBuilder
-    private func blockRow(at index: Int, block: Block) -> some View {
+    private func blockTree(_ blocks: [Block], depth: Int = 0) -> AnyView {
+        AnyView(ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in
+            blockRow(at: index, siblings: blocks, block: block)
+                .padding(.leading, CGFloat(depth) * 24)
+                .onDrop(of: [.text], delegate: BlockDropDelegate(
+                    destinationID: block.id,
+                    draggedBlockID: $draggedBlockID,
+                    moveBlock: moveBlock
+                ))
+
+            if block.kind == .toggle, expandedToggleIDs.contains(block.id) {
+                blockTree(block.children, depth: depth + 1)
+                    .padding(.leading, 10)
+                    .overlay(alignment: .leading) {
+                        Capsule()
+                            .fill(.quaternary)
+                            .frame(width: 1)
+                    }
+            }
+        })
+    }
+
+    private func blockRow(at index: Int, siblings: [Block], block: Block) -> some View {
         BlockRowView(
             block: binding(for: block),
-            listMarker: listMarker(for: block, at: index),
+            listMarker: listMarker(for: block, at: index, siblings: siblings),
             slashState: slashStates[block.id],
             selectedSlashCommandIndex: selectedSlashCommandIndices[block.id] ?? 0,
             isFocused: focusedBlockID == block.id,
@@ -106,6 +122,8 @@ struct BlockEditorView: View {
             onPressReturn: {
                 if slashStates[block.id] != nil {
                     selectHighlightedSlashCommand(for: block.id)
+                } else if block.kind == .toggle {
+                    insertChildBlock(in: block.id)
                 } else {
                     insertBlock(after: block.id, kind: .paragraph)
                 }
@@ -131,7 +149,11 @@ struct BlockEditorView: View {
                 return true
             },
             onAddBlock: {
-                insertBlock(after: block.id, kind: .paragraph)
+                if block.kind == .toggle {
+                    insertChildBlock(in: block.id)
+                } else {
+                    insertBlock(after: block.id, kind: .paragraph)
+                }
             },
             onChangeKind: { kind in
                 changeBlockKind(blockID: block.id, to: kind)
@@ -141,6 +163,14 @@ struct BlockEditorView: View {
             },
             onDragStart: {
                 draggedBlockID = block.id
+            },
+            isToggleExpanded: expandedToggleIDs.contains(block.id),
+            onToggleExpanded: {
+                if expandedToggleIDs.contains(block.id) {
+                    expandedToggleIDs.remove(block.id)
+                } else {
+                    expandedToggleIDs.insert(block.id)
+                }
             }
         )
     }
@@ -148,21 +178,20 @@ struct BlockEditorView: View {
     private func binding(for block: Block) -> Binding<Block> {
         Binding(
             get: {
-                noteStore.editorBlocks.first(where: { $0.id == block.id }) ?? block
+                findBlock(id: block.id, in: noteStore.editorBlocks) ?? block
             },
             set: { updatedBlock in
-                guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == block.id }) else { return }
-                noteStore.editorBlocks[index] = updatedBlock
+                guard replaceBlock(updatedBlock, id: block.id, in: &noteStore.editorBlocks) else { return }
             }
         )
     }
 
-    private func listMarker(for block: Block, at index: Int) -> String? {
+    private func listMarker(for block: Block, at index: Int, siblings: [Block]) -> String? {
         switch block.kind {
         case .bullet:
             return "•"
         case .numbered:
-            let number = noteStore.editorBlocks[..<index].filter { $0.kind == .numbered }.count + 1
+            let number = siblings[..<index].filter { $0.kind == .numbered }.count + 1
             return "\(number)."
         default:
             return nil
@@ -188,13 +217,12 @@ struct BlockEditorView: View {
     }
 
     private func applySlashCommand(blockID: UUID, kind: BlockKind) {
-        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == blockID }) else { return }
-        var block = noteStore.editorBlocks[index]
+        guard var block = findBlock(id: blockID, in: noteStore.editorBlocks) else { return }
         if let slash = slashStates[blockID] {
             block.text = String(block.text.dropLast(slash.suffixLength))
         }
         updateBlockKind(&block, to: kind)
-        noteStore.editorBlocks[index] = block
+        _ = replaceBlock(block, id: blockID, in: &noteStore.editorBlocks)
         slashStates[blockID] = nil
         selectedSlashCommandIndices[blockID] = nil
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
@@ -206,10 +234,9 @@ struct BlockEditorView: View {
     }
 
     private func changeBlockKind(blockID: UUID, to kind: BlockKind) {
-        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == blockID }) else { return }
-        var block = noteStore.editorBlocks[index]
+        guard var block = findBlock(id: blockID, in: noteStore.editorBlocks) else { return }
         updateBlockKind(&block, to: kind)
-        noteStore.editorBlocks[index] = block
+        _ = replaceBlock(block, id: blockID, in: &noteStore.editorBlocks)
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
         focusedBlockID = blockID
 
@@ -226,9 +253,8 @@ struct BlockEditorView: View {
     }
 
     private func insertBlock(after blockID: UUID, kind: BlockKind) {
-        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == blockID }) else { return }
         let newBlock = Block(kind: kind)
-        noteStore.editorBlocks.insert(newBlock, at: index + 1)
+        guard insertSibling(newBlock, after: blockID, in: &noteStore.editorBlocks) else { return }
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
         focusedBlockID = newBlock.id
     }
@@ -240,52 +266,48 @@ struct BlockEditorView: View {
         focusedBlockID = block.id
     }
 
-    private func deleteEmptyFocusedBlock(id: UUID) -> Bool {
-        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == id }),
-              noteStore.editorBlocks[index].text.isEmpty,
-              noteStore.editorBlocks.count > 1
-        else { return false }
-
-        let previousID = index > 0
-            ? noteStore.editorBlocks[index - 1].id
-            : nil
-        noteStore.editorBlocks.remove(at: index)
+    private func insertChildBlock(in toggleID: UUID) {
+        let child = Block()
+        guard appendChild(child, to: toggleID, in: &noteStore.editorBlocks) else { return }
+        expandedToggleIDs.insert(toggleID)
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
-        focusedBlockID = previousID ?? noteStore.editorBlocks.first?.id
+        focusedBlockID = child.id
+    }
+
+    private func deleteEmptyFocusedBlock(id: UUID) -> Bool {
+        guard let block = findBlock(id: id, in: noteStore.editorBlocks), block.text.isEmpty,
+              totalBlockCount(noteStore.editorBlocks) > 1
+        else { return false }
+        guard removeBlock(id: id, from: &noteStore.editorBlocks) else { return false }
+        noteStore.commitEditorBlocks(noteStore.editorBlocks)
+        focusedBlockID = noteStore.editorBlocks.first?.id
         return true
     }
 
     private func deleteDivider(id: UUID) -> Bool {
-        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == id }),
-              noteStore.editorBlocks[index].kind == .divider
+        guard let block = findBlock(id: id, in: noteStore.editorBlocks), block.kind == .divider
         else { return false }
 
-        if noteStore.editorBlocks.count == 1 {
-            noteStore.editorBlocks[0] = Block(id: id)
+        if totalBlockCount(noteStore.editorBlocks) == 1 {
+            _ = replaceBlock(Block(id: id), id: id, in: &noteStore.editorBlocks)
             focusedBlockID = id
         } else {
-            let replacementFocus = index > 0
-                ? noteStore.editorBlocks[index - 1].id
-                : noteStore.editorBlocks[index + 1].id
-            noteStore.editorBlocks.remove(at: index)
-            focusedBlockID = replacementFocus
+            _ = removeBlock(id: id, from: &noteStore.editorBlocks)
+            focusedBlockID = noteStore.editorBlocks.first?.id
         }
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
         return true
     }
 
     private func deleteBlock(id: UUID) {
-        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == id }) else { return }
+        guard findBlock(id: id, in: noteStore.editorBlocks) != nil else { return }
 
-        if noteStore.editorBlocks.count == 1 {
-            noteStore.editorBlocks[0] = Block(id: id)
+        if totalBlockCount(noteStore.editorBlocks) == 1 {
+            _ = replaceBlock(Block(id: id), id: id, in: &noteStore.editorBlocks)
             focusedBlockID = id
         } else {
-            let replacementFocus = index > 0
-                ? noteStore.editorBlocks[index - 1].id
-                : noteStore.editorBlocks[index + 1].id
-            noteStore.editorBlocks.remove(at: index)
-            focusedBlockID = replacementFocus
+            _ = removeBlock(id: id, from: &noteStore.editorBlocks)
+            focusedBlockID = noteStore.editorBlocks.first?.id
         }
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
     }
@@ -304,6 +326,62 @@ struct BlockEditorView: View {
         }
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
         focusedBlockID = sourceID
+    }
+
+    private func findBlock(id: UUID, in blocks: [Block]) -> Block? {
+        for block in blocks {
+            if block.id == id { return block }
+            if let found = findBlock(id: id, in: block.children) { return found }
+        }
+        return nil
+    }
+
+    private func replaceBlock(_ updated: Block, id: UUID, in blocks: inout [Block]) -> Bool {
+        for index in blocks.indices {
+            if blocks[index].id == id {
+                blocks[index] = updated
+                return true
+            }
+            if replaceBlock(updated, id: id, in: &blocks[index].children) { return true }
+        }
+        return false
+    }
+
+    private func insertSibling(_ newBlock: Block, after id: UUID, in blocks: inout [Block]) -> Bool {
+        for index in blocks.indices {
+            if blocks[index].id == id {
+                blocks.insert(newBlock, at: index + 1)
+                return true
+            }
+            if insertSibling(newBlock, after: id, in: &blocks[index].children) { return true }
+        }
+        return false
+    }
+
+    private func appendChild(_ child: Block, to toggleID: UUID, in blocks: inout [Block]) -> Bool {
+        for index in blocks.indices {
+            if blocks[index].id == toggleID, blocks[index].kind == .toggle {
+                blocks[index].children.append(child)
+                return true
+            }
+            if appendChild(child, to: toggleID, in: &blocks[index].children) { return true }
+        }
+        return false
+    }
+
+    private func removeBlock(id: UUID, from blocks: inout [Block]) -> Bool {
+        if let index = blocks.firstIndex(where: { $0.id == id }) {
+            blocks.remove(at: index)
+            return true
+        }
+        for index in blocks.indices {
+            if removeBlock(id: id, from: &blocks[index].children) { return true }
+        }
+        return false
+    }
+
+    private func totalBlockCount(_ blocks: [Block]) -> Int {
+        blocks.reduce(0) { $0 + 1 + totalBlockCount($1.children) }
     }
 
     private func moveSlashCommandSelection(for blockID: UUID, by offset: Int) {

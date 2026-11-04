@@ -2,13 +2,46 @@ import Foundation
 
 enum MarkdownCodec {
     static func parse(_ markdown: String) -> [Block] {
+        parse(lines: markdown.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline))
+    }
+
+    private static func parse(lines: [Substring]) -> [Block] {
         var blocks: [Block] = []
-        let lines = markdown.split(omittingEmptySubsequences: false, whereSeparator: \.isNewline)
         var index = lines.startIndex
 
         while index < lines.endIndex {
             let line = String(lines[index])
             let trimmed = line.trimmingCharacters(in: .whitespaces)
+
+            if trimmed == "<details>" {
+                index = lines.index(after: index)
+                var title = "Toggle"
+                if index < lines.endIndex {
+                    let summary = String(lines[index]).trimmingCharacters(in: .whitespaces)
+                    if summary.hasPrefix("<summary>"), summary.hasSuffix("</summary>") {
+                        title = String(summary.dropFirst("<summary>".count).dropLast("</summary>".count))
+                        index = lines.index(after: index)
+                    }
+                }
+                var childLines: [Substring] = []
+                var depth = 1
+                while index < lines.endIndex {
+                    let candidate = String(lines[index]).trimmingCharacters(in: .whitespaces)
+                    if candidate == "<details>" { depth += 1 }
+                    if candidate == "</details>" {
+                        depth -= 1
+                        if depth == 0 {
+                            index = lines.index(after: index)
+                            break
+                        }
+                    }
+                    childLines.append(lines[index])
+                    index = lines.index(after: index)
+                }
+                let children = childLines.isEmpty ? [] : parse(lines: childLines)
+                blocks.append(Block(kind: .toggle, text: title, children: children))
+                continue
+            }
 
             if trimmed.hasPrefix("```") {
                 var body: [String] = []
@@ -98,6 +131,13 @@ enum MarkdownCodec {
                 lines.append("```")
             case .divider:
                 lines.append("---")
+            case .toggle:
+                lines.append("<details>")
+                lines.append("<summary>\(block.text)</summary>")
+                if !block.children.isEmpty {
+                    lines.append(serialize(block.children))
+                }
+                lines.append("</details>")
             }
         }
         return lines.joined(separator: "\n")
