@@ -18,6 +18,7 @@ struct BlockRowView: View {
     let onDismissSlashCommand: () -> Bool
     let onAddBlock: () -> Void
     let onChangeKind: (BlockKind) -> Void
+    let onDeleteBlock: () -> Void
     let onDragStart: () -> Void
 
     @State private var isHovering = false
@@ -30,6 +31,7 @@ struct BlockRowView: View {
                     currentKind: block.kind,
                     onAddBlock: onAddBlock,
                     onChangeKind: onChangeKind,
+                    onDeleteBlock: onDeleteBlock,
                     onDragStart: onDragStart,
                     blockID: block.id
                 )
@@ -43,7 +45,10 @@ struct BlockRowView: View {
                 }
 
                 if block.kind == .divider {
-                    Divider()
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.35))
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 1)
                         .padding(.vertical, 12)
                 } else {
                     field
@@ -147,6 +152,7 @@ private struct BlockControls: View {
     let currentKind: BlockKind
     let onAddBlock: () -> Void
     let onChangeKind: (BlockKind) -> Void
+    let onDeleteBlock: () -> Void
     let onDragStart: () -> Void
     let blockID: UUID
 
@@ -168,6 +174,12 @@ private struct BlockControls: View {
                         Label(kind.menuTitle, systemImage: kind.systemImage)
                     }
                     .disabled(kind == currentKind)
+                }
+
+                Divider()
+
+                Button(role: .destructive, action: onDeleteBlock) {
+                    Label("Delete block", systemImage: "trash")
                 }
             } label: {
                 Image(systemName: "circle.grid.2x2.fill")

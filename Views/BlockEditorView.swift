@@ -130,6 +130,9 @@ struct BlockEditorView: View {
             onChangeKind: { kind in
                 changeBlockKind(blockID: block.id, to: kind)
             },
+            onDeleteBlock: {
+                deleteBlock(id: block.id)
+            },
             onDragStart: {
                 draggedBlockID = block.id
             }
@@ -237,11 +240,45 @@ struct BlockEditorView: View {
               noteStore.editorBlocks.count > 1
         else { return false }
 
-        let previousID = index > 0 ? noteStore.editorBlocks[index - 1].id : nil
-        noteStore.editorBlocks.remove(at: index)
+        // A divider has no text view to receive the next Backspace. When the
+        // user backspaces from an empty block immediately after one, remove
+        // the divider(s) too and leave focus on an editable predecessor.
+        var firstRemovalIndex = index
+        while firstRemovalIndex > 0,
+              noteStore.editorBlocks[firstRemovalIndex - 1].kind == .divider {
+            firstRemovalIndex -= 1
+        }
+
+        let previousID = firstRemovalIndex > 0
+            ? noteStore.editorBlocks[firstRemovalIndex - 1].id
+            : nil
+        noteStore.editorBlocks.removeSubrange(firstRemovalIndex...index)
+
+        if noteStore.editorBlocks.isEmpty {
+            let replacement = Block()
+            noteStore.editorBlocks = [replacement]
+            focusedBlockID = replacement.id
+        } else {
+            focusedBlockID = previousID ?? noteStore.editorBlocks.first?.id
+        }
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
-        focusedBlockID = previousID ?? noteStore.editorBlocks.first?.id
         return true
+    }
+
+    private func deleteBlock(id: UUID) {
+        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == id }) else { return }
+
+        if noteStore.editorBlocks.count == 1 {
+            noteStore.editorBlocks[0] = Block(id: id)
+            focusedBlockID = id
+        } else {
+            let replacementFocus = index > 0
+                ? noteStore.editorBlocks[index - 1].id
+                : noteStore.editorBlocks[index + 1].id
+            noteStore.editorBlocks.remove(at: index)
+            focusedBlockID = replacementFocus
+        }
+        noteStore.commitEditorBlocks(noteStore.editorBlocks)
     }
 
     private func moveBlock(from sourceID: UUID, before destinationID: UUID?) {
