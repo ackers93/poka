@@ -14,6 +14,7 @@ struct BlockRowView: View {
     let onSelectSlashCommand: (BlockKind) -> Void
     let onPressReturn: () -> Void
     let onPressDeleteWhenEmpty: () -> Bool
+    let onPressDeleteDivider: () -> Bool
     let onMoveSlashSelection: (Int) -> Bool
     let onDismissSlashCommand: () -> Bool
     let onAddBlock: () -> Void
@@ -45,11 +46,20 @@ struct BlockRowView: View {
                 }
 
                 if block.kind == .divider {
+                    #if os(macOS)
+                    MacDividerView(
+                        isFocused: isFocused,
+                        focusedBlockID: focusedBlockID,
+                        blockID: block.id,
+                        onPressDelete: onPressDeleteDivider
+                    )
+                    #else
                     Rectangle()
                         .fill(Color.secondary.opacity(0.35))
                         .frame(maxWidth: .infinity)
                         .frame(height: 1)
                         .padding(.vertical, 12)
+                    #endif
                 } else {
                     field
                 }
@@ -203,6 +213,58 @@ private struct BlockControls: View {
 }
 
 #if os(macOS)
+private struct MacDividerView: NSViewRepresentable {
+    let isFocused: Bool
+    var focusedBlockID: Binding<UUID?>
+    let blockID: UUID
+    let onPressDelete: () -> Bool
+
+    func makeNSView(context: Context) -> DividerNSView {
+        let view = DividerNSView()
+        view.onFocus = { focusedBlockID.wrappedValue = blockID }
+        view.onPressDelete = onPressDelete
+        return view
+    }
+
+    func updateNSView(_ view: DividerNSView, context: Context) {
+        view.onFocus = { focusedBlockID.wrappedValue = blockID }
+        view.onPressDelete = onPressDelete
+        if isFocused, view.window?.firstResponder !== view {
+            DispatchQueue.main.async {
+                _ = view.window?.makeFirstResponder(view)
+            }
+        }
+    }
+}
+
+private final class DividerNSView: NSView {
+    var onFocus: () -> Void = {}
+    var onPressDelete: () -> Bool = { false }
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func mouseDown(with event: NSEvent) {
+        window?.makeFirstResponder(self)
+        onFocus()
+    }
+
+    override func draw(_ dirtyRect: NSRect) {
+        NSColor.separatorColor.setFill()
+        NSBezierPath(rect: NSRect(x: 0, y: bounds.midY.rounded(), width: bounds.width, height: 1)).fill()
+    }
+
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: NSView.noIntrinsicMetric, height: 25)
+    }
+
+    override func keyDown(with event: NSEvent) {
+        if event.keyCode == 51 || event.keyCode == 117, onPressDelete() {
+            return
+        }
+        super.keyDown(with: event)
+    }
+}
+
 private struct MacBlockTextView: NSViewRepresentable {
     @Binding var text: String
     let kind: BlockKind

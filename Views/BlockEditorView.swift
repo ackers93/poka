@@ -113,6 +113,9 @@ struct BlockEditorView: View {
             onPressDeleteWhenEmpty: {
                 deleteEmptyFocusedBlock(id: block.id)
             },
+            onPressDeleteDivider: {
+                deleteDivider(id: block.id)
+            },
             onMoveSlashSelection: { offset in
                 guard slashStates[block.id] != nil else { return false }
                 moveSlashCommandSelection(for: block.id, by: offset)
@@ -240,26 +243,29 @@ struct BlockEditorView: View {
               noteStore.editorBlocks.count > 1
         else { return false }
 
-        // A divider has no text view to receive the next Backspace. When the
-        // user backspaces from an empty block immediately after one, remove
-        // the divider(s) too and leave focus on an editable predecessor.
-        var firstRemovalIndex = index
-        while firstRemovalIndex > 0,
-              noteStore.editorBlocks[firstRemovalIndex - 1].kind == .divider {
-            firstRemovalIndex -= 1
-        }
-
-        let previousID = firstRemovalIndex > 0
-            ? noteStore.editorBlocks[firstRemovalIndex - 1].id
+        let previousID = index > 0
+            ? noteStore.editorBlocks[index - 1].id
             : nil
-        noteStore.editorBlocks.removeSubrange(firstRemovalIndex...index)
+        noteStore.editorBlocks.remove(at: index)
+        noteStore.commitEditorBlocks(noteStore.editorBlocks)
+        focusedBlockID = previousID ?? noteStore.editorBlocks.first?.id
+        return true
+    }
 
-        if noteStore.editorBlocks.isEmpty {
-            let replacement = Block()
-            noteStore.editorBlocks = [replacement]
-            focusedBlockID = replacement.id
+    private func deleteDivider(id: UUID) -> Bool {
+        guard let index = noteStore.editorBlocks.firstIndex(where: { $0.id == id }),
+              noteStore.editorBlocks[index].kind == .divider
+        else { return false }
+
+        if noteStore.editorBlocks.count == 1 {
+            noteStore.editorBlocks[0] = Block(id: id)
+            focusedBlockID = id
         } else {
-            focusedBlockID = previousID ?? noteStore.editorBlocks.first?.id
+            let replacementFocus = index > 0
+                ? noteStore.editorBlocks[index - 1].id
+                : noteStore.editorBlocks[index + 1].id
+            noteStore.editorBlocks.remove(at: index)
+            focusedBlockID = replacementFocus
         }
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
         return true
