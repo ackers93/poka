@@ -39,6 +39,7 @@ struct BlockRowView: View {
                     onDragStart: onDragStart,
                     blockID: block.id
                 )
+                .padding(.top, controlTopPadding)
 
                 if let listMarker {
                     Text(listMarker)
@@ -167,6 +168,15 @@ struct BlockRowView: View {
 
     private var markerTopPadding: CGFloat {
         0
+    }
+
+    private var controlTopPadding: CGFloat {
+        switch block.kind {
+        case .heading1: 10
+        case .heading2: 6
+        case .heading3: 4
+        default: 0
+        }
     }
 }
 
