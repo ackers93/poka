@@ -82,24 +82,25 @@ struct BlockEditorView: View {
         }
     }
 
-    private func blockTree(_ blocks: [Block], depth: Int = 0) -> AnyView {
+    private func blockTree(_ blocks: [Block]) -> AnyView {
         AnyView(ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in
-            blockRow(at: index, siblings: blocks, block: block)
-                .padding(.leading, CGFloat(depth) * 24)
-                .onDrop(of: [.text], delegate: BlockDropDelegate(
-                    destinationID: block.id,
-                    draggedBlockID: $draggedBlockID,
-                    moveBlock: moveBlock
-                ))
+            VStack(alignment: .leading, spacing: 2) {
+                blockRow(at: index, siblings: blocks, block: block)
+                    .onDrop(of: [.text], delegate: BlockDropDelegate(
+                        destinationID: block.id,
+                        draggedBlockID: $draggedBlockID,
+                        moveBlock: moveBlock
+                    ))
 
-            if block.kind == .toggle, expandedToggleIDs.contains(block.id) {
-                blockTree(block.children, depth: depth + 1)
-                    .padding(.leading, 10)
-                    .overlay(alignment: .leading) {
-                        Capsule()
-                            .fill(.quaternary)
-                            .frame(width: 1)
-                    }
+                if block.kind == .toggle, expandedToggleIDs.contains(block.id) {
+                    blockTree(block.children)
+                        .padding(.leading, 34)
+                        .overlay(alignment: .leading) {
+                            Capsule()
+                                .fill(.quaternary)
+                                .frame(width: 1)
+                        }
+                }
             }
         })
     }
