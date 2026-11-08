@@ -125,8 +125,13 @@ struct BlockEditorView: View {
                     selectHighlightedSlashCommand(for: block.id)
                 } else if block.kind == .toggle {
                     insertChildBlock(in: block.id)
+                } else if [.bullet, .numbered].contains(block.kind), block.text.isEmpty {
+                    changeBlockKind(blockID: block.id, to: .paragraph)
                 } else {
-                    insertBlock(after: block.id, kind: .paragraph)
+                    let continuationKind: BlockKind = [.bullet, .numbered].contains(block.kind)
+                        ? block.kind
+                        : .paragraph
+                    insertBlock(after: block.id, kind: continuationKind)
                 }
             },
             onPressDeleteWhenEmpty: {
@@ -279,9 +284,10 @@ struct BlockEditorView: View {
         guard let block = findBlock(id: id, in: noteStore.editorBlocks), block.text.isEmpty,
               totalBlockCount(noteStore.editorBlocks) > 1
         else { return false }
+        let focusTargetID = adjacentBlockID(to: id, in: noteStore.editorBlocks)
+        focusedBlockID = focusTargetID
         guard removeBlock(id: id, from: &noteStore.editorBlocks) else { return false }
         noteStore.commitEditorBlocks(noteStore.editorBlocks)
-        focusedBlockID = noteStore.editorBlocks.first?.id
         return true
     }
 
@@ -383,6 +389,20 @@ struct BlockEditorView: View {
 
     private func totalBlockCount(_ blocks: [Block]) -> Int {
         blocks.reduce(0) { $0 + 1 + totalBlockCount($1.children) }
+    }
+
+    private func adjacentBlockID(to id: UUID, in blocks: [Block]) -> UUID? {
+        let ids = flattenedBlockIDs(in: blocks)
+        guard let index = ids.firstIndex(of: id) else { return nil }
+        if index > ids.startIndex {
+            return ids[ids.index(before: index)]
+        }
+        let nextIndex = ids.index(after: index)
+        return nextIndex < ids.endIndex ? ids[nextIndex] : nil
+    }
+
+    private func flattenedBlockIDs(in blocks: [Block]) -> [UUID] {
+        blocks.flatMap { [$0.id] + flattenedBlockIDs(in: $0.children) }
     }
 
     private func moveSlashCommandSelection(for blockID: UUID, by offset: Int) {

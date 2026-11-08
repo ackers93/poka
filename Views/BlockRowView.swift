@@ -166,7 +166,7 @@ struct BlockRowView: View {
     }
 
     private var markerTopPadding: CGFloat {
-        block.kind == .heading1 ? 10 : 6
+        0
     }
 }
 
