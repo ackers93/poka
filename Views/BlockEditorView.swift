@@ -7,6 +7,13 @@ struct BlockEditorView: View {
     @State private var slashStates: [UUID: SlashCommandState] = [:]
     @State private var selectedSlashCommandIndices: [UUID: Int] = [:]
     @State private var selectedIDs: Set<UUID> = []
+    private struct InsertionPoint: Equatable {
+        let blockID: UUID
+        let after: Bool
+    }
+
+    @GestureState private var selectingRange = false
+    @GestureState private var insertionPoint: InsertionPoint?
     @State private var rowFrames: [UUID: CGRect] = [:]
     @FocusState private var selectionFocused: Bool
     @State private var draggedBlockID: UUID?
@@ -131,6 +138,7 @@ struct BlockEditorView: View {
                             .contentShape(Rectangle())
                             .help("Drag to select blocks")
                             .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("blockSelection"))
+                                .updating($selectingRange) { _, active, _ in active = true }
                                 .onChanged { drag in
                                     let range = min(drag.startLocation.y, drag.location.y)...max(drag.startLocation.y, drag.location.y)
                                     selectedIDs = Set(rowFrames.compactMap { id, frame in
@@ -146,6 +154,22 @@ struct BlockEditorView: View {
                     .background(GeometryReader { proxy in
                         Color.clear.preference(key: BlockFrames.self, value: [block.id: proxy.frame(in: .named("blockSelection"))])
                     })
+                    .overlay {
+                        if selectedIDs.contains(block.id), !selectingRange {
+                            // Capture the drag above text views, cell editors and the selection gutter.
+                            Color.clear
+                                .contentShape(Rectangle())
+                                .gesture(selectionMoveGesture)
+                                .onTapGesture { selectedIDs.removeAll() }
+                                .help("Drag selected blocks to move them")
+                        }
+                    }
+                    .overlay(alignment: insertionPoint?.after == true ? .bottom : .top) {
+                        if insertionPoint?.blockID == block.id {
+                            Rectangle().fill(Color.accentColor).frame(height: 2)
+                                .allowsHitTesting(false)
+                        }
+                    }
                     .onDrop(of: [.pokaBlock], delegate: BlockDropDelegate(
                         destinationID: block.id,
                         draggedBlockID: $draggedBlockID,
@@ -163,6 +187,25 @@ struct BlockEditorView: View {
                 }
             }
         })
+    }
+
+    private var selectionMoveGesture: some Gesture {
+        DragGesture(minimumDistance: 4, coordinateSpace: .named("blockSelection"))
+            .updating($insertionPoint) { drag, point, _ in
+                point = dropPosition(at: drag.location.y)
+            }
+            .onEnded { drag in
+                guard let point = dropPosition(at: drag.location.y) else { return }
+                moveBlocks(selectedIDs, relativeTo: point.blockID, after: point.after)
+            }
+    }
+
+    private func dropPosition(at y: CGFloat) -> InsertionPoint? {
+        let nearest = rowFrames.min {
+            max($0.value.minY - y, y - $0.value.maxY) < max($1.value.minY - y, y - $1.value.maxY)
+        }
+        guard let (id, frame) = nearest, !selectedIDs.contains(id) else { return nil }
+        return InsertionPoint(blockID: id, after: y >= frame.midY)
     }
 
     private func blockRow(at index: Int, siblings: [Block], block: Block) -> some View {
@@ -391,11 +434,15 @@ struct BlockEditorView: View {
 
     private func moveBlock(from sourceID: UUID, before destinationID: UUID?) {
         let ids: Set<UUID> = selectedIDs.contains(sourceID) ? selectedIDs : [sourceID]
+        moveBlocks(ids, relativeTo: destinationID, after: false)
+    }
+
+    private func moveBlocks(_ ids: Set<UUID>, relativeTo destinationID: UUID?, after: Bool) {
         var remaining = noteStore.editorBlocks
         let moving = extract(ids, from: &remaining)
         guard !moving.isEmpty else { return }
         if let destinationID {
-            guard insert(moving, before: destinationID, in: &remaining) else { return }
+            guard insert(moving, relativeTo: destinationID, after: after, in: &remaining) else { return }
         } else {
             remaining.append(contentsOf: moving)
         }
@@ -424,13 +471,13 @@ struct BlockEditorView: View {
         return extracted
     }
 
-    private func insert(_ moving: [Block], before id: UUID, in blocks: inout [Block]) -> Bool {
+    private func insert(_ moving: [Block], relativeTo id: UUID, after: Bool, in blocks: inout [Block]) -> Bool {
         if let position = blocks.firstIndex(where: { $0.id == id }) {
-            blocks.insert(contentsOf: moving, at: position)
+            blocks.insert(contentsOf: moving, at: after ? position + 1 : position)
             return true
         }
         for index in blocks.indices {
-            if insert(moving, before: id, in: &blocks[index].children) { return true }
+            if insert(moving, relativeTo: id, after: after, in: &blocks[index].children) { return true }
         }
         return false
     }
