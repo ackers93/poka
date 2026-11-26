@@ -7,6 +7,7 @@ A simple Obsidian-style Markdown notes app for **macOS** and **iOS**. Poka does 
 - Open any folder as a vault (local or iCloud Drive)
 - Sidebar list of Markdown files (including nested folders)
 - Notion-style block editor (type `/` for headings, lists, quotes, code, dividers)
+- Drag photos or videos above or below a block to insert them. Poka copies the files into one shared `media/` folder in the vault and saves relative Markdown links. Images appear inline and videos have playback controls.
 - Notes still save as plain `.md` on disk
 - Auto-save while you type
 - macOS: reveal vault in Finder, ⌘N for new note

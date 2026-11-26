@@ -1,4 +1,6 @@
 import SwiftUI
+import AVKit
+import ImageIO
 import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
@@ -6,6 +8,7 @@ import AppKit
 
 struct BlockRowView: View {
     @Binding var block: Block
+    var media: NoteMedia?
     var listMarker: String?
     var slashState: SlashCommandState?
     var selectedSlashCommandIndex: Int
@@ -50,7 +53,9 @@ struct BlockRowView: View {
                         .padding(.top, markerTopPadding)
                 }
 
-                if block.kind == .toggle {
+                if let media {
+                    MediaPreview(media: media).id(media.url)
+                } else if block.kind == .toggle {
                     Button(action: onToggleExpanded) {
                         Image(systemName: isToggleExpanded ? "chevron.down" : "chevron.right")
                             .font(.caption.weight(.semibold))
@@ -183,6 +188,44 @@ struct BlockRowView: View {
         case .heading3: 4
         default: 0
         }
+    }
+}
+
+private struct MediaPreview: View {
+    let media: NoteMedia
+    @State private var player: AVPlayer?
+    @State private var thumbnail: CGImage?
+
+    var body: some View {
+        Group {
+            if let player {
+                VideoPlayer(player: player)
+                    .frame(height: 240)
+            } else if let thumbnail {
+                Image(decorative: thumbnail, scale: 1)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(maxHeight: 360)
+                    .accessibilityLabel(media.url.lastPathComponent)
+            } else {
+                Label(media.url.lastPathComponent, systemImage: media.isVideo ? "film" : "photo")
+            }
+        }
+        .task {
+            let url = media.url
+            if media.isVideo {
+                if FileManager.default.fileExists(atPath: url.path) { player = AVPlayer(url: url) }
+            } else {
+                thumbnail = await Task.detached(priority: .utility) {
+                    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil) else { return nil as CGImage? }
+                    let options: [CFString: Any] = [kCGImageSourceCreateThumbnailFromImageAlways: true,
+                                                    kCGImageSourceCreateThumbnailWithTransform: true,
+                                                    kCGImageSourceThumbnailMaxPixelSize: 1400]
+                    return CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary)
+                }.value
+            }
+        }
+        .onDisappear { player?.pause() }
     }
 }
 

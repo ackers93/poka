@@ -2,13 +2,16 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct BlockEditorView: View {
+    @Environment(VaultService.self) private var vault
+    @State private var mediaInsertion: InsertionPoint?
+    @State private var importError: String?
     @Bindable var noteStore: NoteStore
     @State private var focusedBlockID: UUID?
     @State private var slashStates: [UUID: SlashCommandState] = [:]
     @State private var selectedSlashCommandIndices: [UUID: Int] = [:]
     @State private var selectedIDs: Set<UUID> = []
     private struct InsertionPoint: Equatable {
-        let blockID: UUID
+        let blockID: UUID?
         let after: Bool
     }
 
@@ -31,11 +34,12 @@ struct BlockEditorView: View {
                         selectedIDs.removeAll()
                         appendParagraphAtEnd()
                     }
-                    .onDrop(of: [.pokaBlock], delegate: BlockDropDelegate(
-                        destinationID: nil,
-                        draggedBlockID: $draggedBlockID,
-                        moveBlock: moveBlock
-                    ))
+                    .overlay(alignment: .top) {
+                        if mediaInsertion?.blockID == nil, mediaInsertion != nil {
+                            Rectangle().fill(Color.accentColor).frame(height: 2)
+                        }
+                    }
+                    .onDrop(of: BlockDropDelegate.types, delegate: dropDelegate(for: nil))
             }
             .coordinateSpace(name: "blockSelection")
             .onPreferenceChange(BlockFrames.self) { rowFrames = $0 }
@@ -45,6 +49,11 @@ struct BlockEditorView: View {
             .frame(maxWidth: .infinity, alignment: .center)
         }
         .navigationTitle(noteStore.selectedNote?.title ?? "Note")
+        .alert("Media import", isPresented: Binding(get: { importError != nil }, set: { if !$0 { importError = nil } })) {
+            Button("OK") { importError = nil }
+        } message: {
+            Text(importError ?? "")
+        }
         .toolbar {
             ToolbarItem(placement: .navigation) {
                 NoteIconPicker(icon: noteStore.selectedNote?.frontmatter.icon) { icon in
@@ -164,17 +173,13 @@ struct BlockEditorView: View {
                                 .help("Drag selected blocks to move them")
                         }
                     }
-                    .overlay(alignment: insertionPoint?.after == true ? .bottom : .top) {
-                        if insertionPoint?.blockID == block.id {
+                    .overlay(alignment: (mediaInsertion ?? insertionPoint)?.after == true ? .bottom : .top) {
+                        if (mediaInsertion ?? insertionPoint)?.blockID == block.id {
                             Rectangle().fill(Color.accentColor).frame(height: 2)
                                 .allowsHitTesting(false)
                         }
                     }
-                    .onDrop(of: [.pokaBlock], delegate: BlockDropDelegate(
-                        destinationID: block.id,
-                        draggedBlockID: $draggedBlockID,
-                        moveBlock: moveBlock
-                    ))
+                    .onDrop(of: BlockDropDelegate.types, delegate: dropDelegate(for: block.id))
 
                 if block.kind == .toggle, expandedToggleIDs.contains(block.id) {
                     blockTree(block.children)
@@ -186,6 +191,49 @@ struct BlockEditorView: View {
                         }
                 }
             }
+        })
+    }
+
+    private func mediaReference(for block: Block) -> NoteMedia? {
+        guard block.kind == .paragraph, let note = noteStore.selectedNote?.fileURL,
+              let root = vault.rootURL else { return nil }
+        return NoteMedia(markdown: block.text, note: note, vault: root)
+    }
+
+    private func dropDelegate(for id: UUID?) -> BlockDropDelegate {
+        BlockDropDelegate(destinationID: id, height: id.flatMap { rowFrames[$0]?.height } ?? 0,
+                          draggedBlockID: $draggedBlockID, moveBlock: moveBlock,
+                          highlight: { after in
+            if let after { mediaInsertion = InsertionPoint(blockID: id, after: after) }
+            else if mediaInsertion?.blockID == id { mediaInsertion = nil }
+        }, importMedia: { providers, after in
+            guard let note = noteStore.selectedNote?.fileURL, let root = vault.rootURL else { return false }
+            // Start each provider while its DropInfo is valid. Collect results in drag order.
+            var results: [Int: Result<URL, Error>] = [:]
+            for (index, provider) in providers.enumerated() {
+                NoteMedia.importItem(provider, vault: root) { result in
+                    results[index] = result
+                    guard results.count == providers.count else { return }
+                    let ordered = results.sorted { $0.key < $1.key }.map(\.value)
+                    let files = ordered.compactMap { try? $0.get() }
+                    let blocks = files.map { Block(text: NoteMedia.markdown(for: $0, note: note, vault: root)) }
+                    var updated = noteStore.editorBlocks
+                    guard noteStore.selectedNote?.fileURL == note, vault.rootURL == root,
+                          id.map({ insert(blocks, relativeTo: $0, after: after, in: &updated) }) ?? true else {
+                        for file in files { try? FileManager.default.removeItem(at: file) }
+                        importError = "The drop location changed. Drop the files again."
+                        return
+                    }
+                    if id == nil { updated.append(contentsOf: blocks) }
+                    if !blocks.isEmpty { noteStore.commitEditorBlocks(updated) }
+                    let errors = ordered.compactMap { result -> String? in
+                        if case .failure(let error) = result { return error.localizedDescription }
+                        return nil
+                    }
+                    if !errors.isEmpty { importError = errors.joined(separator: "\n") }
+                }
+            }
+            return !providers.isEmpty
         })
     }
 
@@ -211,6 +259,7 @@ struct BlockEditorView: View {
     private func blockRow(at index: Int, siblings: [Block], block: Block) -> some View {
         BlockRowView(
             block: binding(for: block),
+            media: mediaReference(for: block),
             listMarker: listMarker(for: block, at: index, siblings: siblings),
             slashState: slashStates[block.id],
             selectedSlashCommandIndex: selectedSlashCommandIndices[block.id] ?? 0,
@@ -624,11 +673,22 @@ extension UTType {
 }
 
 private struct BlockDropDelegate: DropDelegate {
+    static let types: [UTType] = [.pokaBlock, .fileURL, .image, .movie]
     let destinationID: UUID?
+    let height: CGFloat
     @Binding var draggedBlockID: UUID?
     let moveBlock: (UUID, UUID?) -> Void
 
+    let highlight: (Bool?) -> Void
+    let importMedia: ([NSItemProvider], Bool) -> Bool
+
+    func dropExited(info: DropInfo) { highlight(nil) }
+
     func performDrop(info: DropInfo) -> Bool {
+        highlight(nil)
+        if !info.hasItemsConforming(to: [.pokaBlock]) {
+            return importMedia(info.itemProviders(for: [.fileURL, .image, .movie]), info.location.y >= height / 2)
+        }
         guard let sourceID = draggedBlockID else { return false }
         moveBlock(sourceID, destinationID)
         draggedBlockID = nil
@@ -636,7 +696,9 @@ private struct BlockDropDelegate: DropDelegate {
     }
 
     func dropUpdated(info: DropInfo) -> DropProposal? {
-        DropProposal(operation: .move)
+        if info.hasItemsConforming(to: [.pokaBlock]) { return DropProposal(operation: .move) }
+        highlight(info.location.y >= height / 2)
+        return DropProposal(operation: .copy)
     }
 }
 

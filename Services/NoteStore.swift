@@ -134,7 +134,7 @@ final class NoteStore {
 
     func moveNote(id: String, to folder: URL) {
         guard let note = notes.first(where: { $0.id == id }) else { return }
-        guard vault?.startAccessingVault() != nil else { return }
+        guard let root = vault?.startAccessingVault() else { return }
         defer { vault?.stopAccessingVault() }
 
         let destination = folder.appendingPathComponent(note.fileURL.lastPathComponent, isDirectory: false)
@@ -145,7 +145,18 @@ final class NoteStore {
         }
 
         do {
+            flushSave()
+            let original = try String(contentsOf: note.fileURL, encoding: .utf8)
+            let updated = NoteMedia.rebaseLinks(in: original, from: note.fileURL, to: destination, vault: root)
             try FileManager.default.moveItem(at: note.fileURL, to: destination)
+            if updated != original {
+                do {
+                    try updated.write(to: destination, atomically: true, encoding: .utf8)
+                } catch {
+                    try FileManager.default.moveItem(at: destination, to: note.fileURL)
+                    throw error
+                }
+            }
             reload()
             if let moved = notes.first(where: { $0.fileURL == destination }) {
                 select(moved)
@@ -200,7 +211,7 @@ final class NoteStore {
         }
 
         do {
-            saveTask?.cancel()
+            flushSave()
             let source = try String(contentsOf: note.fileURL, encoding: .utf8)
             let document = MarkdownDocument.parse(source)
             let updatedBody = Self.updatingDocumentTitle(in: document.body, to: cleanedName)
@@ -250,7 +261,7 @@ final class NoteStore {
         if let index = notes.firstIndex(where: { $0.id == note.id }) {
             notes[index].frontmatter = frontmatter
         }
-        Task { await saveEditorIfNeeded() }
+        saveEditorIfNeeded()
     }
 
     private func loadSelectedNoteContent() {
@@ -279,16 +290,18 @@ final class NoteStore {
         saveTask = Task {
             try? await Task.sleep(for: .milliseconds(400))
             guard !Task.isCancelled else { return }
-            await saveEditorIfNeeded()
+            saveEditorIfNeeded()
         }
     }
 
     private func flushSave() {
+        guard saveTask != nil else { return }
         saveTask?.cancel()
-        Task { await saveEditorIfNeeded() }
+        saveEditorIfNeeded()
     }
 
-    private func saveEditorIfNeeded() async {
+    private func saveEditorIfNeeded() {
+        saveTask = nil
         guard let fileURL = loadedFileURL, let note = selectedNote else { return }
         guard vault?.startAccessingVault() != nil else { return }
         defer { vault?.stopAccessingVault() }

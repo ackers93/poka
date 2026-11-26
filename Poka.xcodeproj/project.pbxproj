@@ -31,12 +31,14 @@
 		6AB1A402E1809978F44CD87A /* commit-msg.sample in Resources */ = {isa = PBXBuildFile; fileRef = 56F4A3FBD4A6F49D7A67AC79 /* commit-msg.sample */; };
 		6E77AC5D726A76AB74F38ED8 /* push-to-checkout.sample in Resources */ = {isa = PBXBuildFile; fileRef = C3F26EB99F71B66325FBD7F4 /* push-to-checkout.sample */; };
 		72AD37294CC3BB88342DBCBC /* MarkdownCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 780C6BE5D7DA168E1FB16601 /* MarkdownCodec.swift */; };
+		72AD372A4CC3BB88342DBCBC /* NoteMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 780C6BE6D7DA168E1FB16601 /* NoteMedia.swift */; };
 		769067FB4D30141283E53B5F /* NoteEditorView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F8449881DBE38F744554289 /* NoteEditorView.swift */; };
 		7DBA3B74677D009FC1BE489A /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BA71DB789BC972121334D84 /* Block.swift */; };
 		8751D7988A6054547668769F /* update.sample in Resources */ = {isa = PBXBuildFile; fileRef = AA472B5FB6AA79C5F695D3B2 /* update.sample */; };
 		880874D27231365652748179 /* push-to-checkout.sample in Resources */ = {isa = PBXBuildFile; fileRef = C3F26EB99F71B66325FBD7F4 /* push-to-checkout.sample */; };
 		88818D15902CBCB8D9ABBFF3 /* pre-rebase.sample in Resources */ = {isa = PBXBuildFile; fileRef = 2AA9CAD2C7593926751AC1BE /* pre-rebase.sample */; };
 		8A999AA3E62E2BA7F393CF58 /* MarkdownCodec.swift in Sources */ = {isa = PBXBuildFile; fileRef = 780C6BE5D7DA168E1FB16601 /* MarkdownCodec.swift */; };
+		8A999AA4E62E2BA7F393CF58 /* NoteMedia.swift in Sources */ = {isa = PBXBuildFile; fileRef = 780C6BE6D7DA168E1FB16601 /* NoteMedia.swift */; };
 		8BF50F4E2901AC04F826EDD7 /* post-update.sample in Resources */ = {isa = PBXBuildFile; fileRef = DDE129DDAC8DFCFC0454977B /* post-update.sample */; };
 		9128BB89DA49CF713D420D3D /* commit-msg.sample in Resources */ = {isa = PBXBuildFile; fileRef = 56F4A3FBD4A6F49D7A67AC79 /* commit-msg.sample */; };
 		915BCBD2E36230B6B6F5FAC0 /* Block.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4BA71DB789BC972121334D84 /* Block.swift */; };
@@ -98,6 +100,7 @@
 		6A27FD3C1AB40532A2D621B4 /* 3c1200c2a4d8ab1a54f06690433c3ddd43283c */ = {isa = PBXFileReference; lastKnownFileType = file; path = 3c1200c2a4d8ab1a54f06690433c3ddd43283c; sourceTree = "<group>"; };
 		77A2A91FA50816960481D6A2 /* main */ = {isa = PBXFileReference; lastKnownFileType = text; path = main; sourceTree = "<group>"; };
 		780C6BE5D7DA168E1FB16601 /* MarkdownCodec.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MarkdownCodec.swift; sourceTree = "<group>"; };
+		780C6BE6D7DA168E1FB16601 /* NoteMedia.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NoteMedia.swift; sourceTree = "<group>"; };
 		7AC7115EFE4F7EA7DA55EE5A /* applypatch-msg.sample */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = "applypatch-msg.sample"; sourceTree = "<group>"; };
 		7C48BE9D6323F02832245F09 /* 3a14d119bc2a270cc80334eaee4d2b1fec8e47 */ = {isa = PBXFileReference; lastKnownFileType = file; path = 3a14d119bc2a270cc80334eaee4d2b1fec8e47; sourceTree = "<group>"; };
 		82687A0BC058D035B1992D1D /* cb1554c5c2a2c04e65e6dcfa9ec052cf0d2faa */ = {isa = PBXFileReference; lastKnownFileType = file; path = cb1554c5c2a2c04e65e6dcfa9ec052cf0d2faa; sourceTree = "<group>"; };
@@ -289,6 +292,7 @@
 			isa = PBXGroup;
 			children = (
 				780C6BE5D7DA168E1FB16601 /* MarkdownCodec.swift */,
+				780C6BE6D7DA168E1FB16601 /* NoteMedia.swift */,
 				830BBE891E5092A4BCB44FFB /* NoteStore.swift */,
 				2DD79EAD2C6D7286330CCB7B /* VaultService.swift */,
 			);
@@ -698,6 +702,7 @@
 				028247C8B423695EBD92C632 /* BlockRowView.swift in Sources */,
 				C32E7EE219D89B7F98165F0E /* MainWorkspaceView.swift in Sources */,
 				8A999AA3E62E2BA7F393CF58 /* MarkdownCodec.swift in Sources */,
+				8A999AA4E62E2BA7F393CF58 /* NoteMedia.swift in Sources */,
 				53EC12B4051DA71FA1022B30 /* Note.swift in Sources */,
 				99C3D7E53FC7E0E000446CCE /* NoteEditorView.swift in Sources */,
 				B25F8656729A1797BFAFD3D6 /* NoteStore.swift in Sources */,
@@ -718,6 +723,7 @@
 				16FAA52D98AA8196EACED0FD /* BlockRowView.swift in Sources */,
 				054675260AB8A033A1B23614 /* MainWorkspaceView.swift in Sources */,
 				72AD37294CC3BB88342DBCBC /* MarkdownCodec.swift in Sources */,
+				72AD372A4CC3BB88342DBCBC /* NoteMedia.swift in Sources */,
 				9E390F905676987739A206DC /* Note.swift in Sources */,
 				769067FB4D30141283E53B5F /* NoteEditorView.swift in Sources */,
 				5FE055A8DBF877A8B80B0958 /* NoteStore.swift in Sources */,
