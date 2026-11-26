@@ -64,6 +64,19 @@ struct BlockRowView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
                     field
+                } else if block.kind == .quote {
+                    field
+                        .padding(.leading, 14)
+                        .padding(.vertical, 4)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .overlay(alignment: .leading) {
+                            Capsule()
+                                .fill(.primary.opacity(0.65))
+                                .frame(width: 3)
+                                .allowsHitTesting(false)
+                        }
+                        .padding(.vertical, 3)
+                        .accessibilityLabel("Quote")
                 } else if block.kind == .table {
                     TableBlockView(rows: Binding(
                         get: { block.tableRows ?? Block.newTable(title: block.text) },
@@ -129,7 +142,7 @@ struct BlockRowView: View {
         TextField("", text: bindingText, axis: usesMultilineField ? .vertical : .horizontal)
             .textFieldStyle(.plain)
             .font(contentFont)
-            .foregroundStyle(contentColor)
+            .foregroundStyle(.primary)
             .lineLimit(usesMultilineField ? 2...30 : 1...4)
             .padding(.vertical, verticalPadding)
             .onChange(of: block.text) { _, newValue in
@@ -156,13 +169,8 @@ struct BlockRowView: View {
         case .heading2: .title.bold()
         case .heading3: .title3.weight(.semibold)
         case .code: .body.monospaced()
-        case .quote: .body.italic()
         default: .body
         }
-    }
-
-    private var contentColor: Color {
-        block.kind == .quote ? .secondary : .primary
     }
 
     private var verticalPadding: CGFloat {
@@ -389,9 +397,14 @@ private struct MacBlockTextView: NSViewRepresentable {
         }
     }
 
+    func sizeThatFits(_ proposal: ProposedViewSize, nsView: BlockNSTextView, context: Context) -> CGSize? {
+        guard let width = proposal.width, width.isFinite, width > 0 else { return nil }
+        return CGSize(width: width, height: nsView.height(for: width))
+    }
+
     private func configure(_ view: BlockNSTextView) {
         view.font = font
-        view.textColor = kind == .quote ? .secondaryLabelColor : .labelColor
+        view.textColor = .labelColor
         view.onPressReturn = onPressReturn
         view.onPressDeleteWhenEmpty = onPressDeleteWhenEmpty
         view.onMoveSlashSelection = onMoveSlashSelection
@@ -457,19 +470,17 @@ private final class BlockNSTextView: NSTextView {
         fatalError("init(coder:) has not been implemented")
     }
 
-    override var intrinsicContentSize: NSSize {
-        guard let layoutManager, let textContainer else {
-            return NSSize(width: NSView.noIntrinsicMetric, height: 22)
-        }
+    func height(for width: CGFloat) -> CGFloat {
+        guard let layoutManager, let textContainer else { return 22 }
+        textContainer.containerSize = NSSize(width: width, height: .greatestFiniteMagnitude)
         layoutManager.ensureLayout(for: textContainer)
-        let height = layoutManager.usedRect(for: textContainer).height + textContainerInset.height * 2
-        return NSSize(width: NSView.noIntrinsicMetric, height: max(22, ceil(height)))
+        let textBottom = layoutManager.usedRect(for: textContainer).maxY
+        let caretBottom = layoutManager.extraLineFragmentRect.maxY
+        return max(22, ceil(max(textBottom, caretBottom) + textContainerInset.height * 2))
     }
 
-    override func layout() {
-        super.layout()
-        textContainer?.containerSize = NSSize(width: max(1, bounds.width), height: CGFloat.greatestFiniteMagnitude)
-        invalidateIntrinsicContentSize()
+    override var intrinsicContentSize: NSSize {
+        NSSize(width: NSView.noIntrinsicMetric, height: height(for: max(1, bounds.width)))
     }
 
     override func keyDown(with event: NSEvent) {

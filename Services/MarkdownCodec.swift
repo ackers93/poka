@@ -90,14 +90,22 @@ enum MarkdownCodec {
                 continue
             }
 
+            if quoteLine(line) != nil {
+                var quoted: [String] = []
+                while index < lines.endIndex, let content = quoteLine(String(lines[index])) {
+                    quoted.append(content)
+                    index += 1
+                }
+                blocks.append(Block(kind: .quote, text: quoted.joined(separator: "\n")))
+                continue
+            }
+
             if trimmed.hasPrefix("### ") {
                 blocks.append(Block(kind: .heading3, text: String(trimmed.dropFirst(4))))
             } else if trimmed.hasPrefix("## ") {
                 blocks.append(Block(kind: .heading2, text: String(trimmed.dropFirst(3))))
             } else if trimmed.hasPrefix("# ") {
                 blocks.append(Block(kind: .heading1, text: String(trimmed.dropFirst(2))))
-            } else if trimmed.hasPrefix("> ") {
-                blocks.append(Block(kind: .quote, text: String(trimmed.dropFirst(2))))
             } else if trimmed.hasPrefix("- ") || trimmed.hasPrefix("* ") {
                 blocks.append(Block(kind: .bullet, text: String(trimmed.dropFirst(2))))
             } else if let dot = trimmed.firstIndex(of: "."),
@@ -118,6 +126,13 @@ enum MarkdownCodec {
             blocks.append(Block())
         }
         return blocks
+    }
+
+    private static func quoteLine(_ line: String) -> String? {
+        let trimmed = line.drop(while: { $0 == " " || $0 == "\t" })
+        guard trimmed.first == ">" else { return nil }
+        let content = trimmed.dropFirst()
+        return String(content.first == " " ? content.dropFirst() : content)
     }
 
     private static func isTableSeparator(_ line: Substring, width: Int) -> Bool {
@@ -175,7 +190,7 @@ enum MarkdownCodec {
             case .numbered:
                 lines.append("1. \(block.text)")
             case .quote:
-                lines.append("> \(block.text)")
+                lines += block.text.components(separatedBy: .newlines).map { $0.isEmpty ? ">" : "> " + $0 }
             case .code:
                 lines.append("```")
                 if !block.text.isEmpty {
