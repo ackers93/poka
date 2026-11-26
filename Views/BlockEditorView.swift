@@ -6,6 +6,9 @@ struct BlockEditorView: View {
     @State private var focusedBlockID: UUID?
     @State private var slashStates: [UUID: SlashCommandState] = [:]
     @State private var selectedSlashCommandIndices: [UUID: Int] = [:]
+    @State private var selectedIDs: Set<UUID> = []
+    @State private var rowFrames: [UUID: CGRect] = [:]
+    @FocusState private var selectionFocused: Bool
     @State private var draggedBlockID: UUID?
     @State private var expandedToggleIDs: Set<UUID> = []
 
@@ -17,13 +20,18 @@ struct BlockEditorView: View {
                 Color.clear
                     .frame(height: 120)
                     .contentShape(Rectangle())
-                    .onTapGesture { appendParagraphAtEnd() }
-                    .onDrop(of: [.text], delegate: BlockDropDelegate(
+                    .onTapGesture {
+                        selectedIDs.removeAll()
+                        appendParagraphAtEnd()
+                    }
+                    .onDrop(of: [.pokaBlock], delegate: BlockDropDelegate(
                         destinationID: nil,
                         draggedBlockID: $draggedBlockID,
                         moveBlock: moveBlock
                     ))
             }
+            .coordinateSpace(name: "blockSelection")
+            .onPreferenceChange(BlockFrames.self) { rowFrames = $0 }
             .padding(.horizontal, 24)
             .padding(.vertical, 16)
             .frame(maxWidth: 720, alignment: .leading)
@@ -48,6 +56,8 @@ struct BlockEditorView: View {
         .onChange(of: noteStore.selectedNoteID) { _, _ in
             slashStates = [:]
             selectedSlashCommandIndices = [:]
+            selectedIDs = []
+            draggedBlockID = nil
             expandedToggleIDs = []
             focusedBlockID = noteStore.editorBlocks.first?.id
         }
@@ -74,11 +84,38 @@ struct BlockEditorView: View {
         }
         #endif
         .safeAreaInset(edge: .bottom) {
-            Text("Type / for block types · ↩ for a new text block · ⇧↩ for a line break")
+            if !selectedIDs.isEmpty {
+                HStack {
+                    Text("\(selectedIDs.count) selected")
+                    Button("Delete", role: .destructive) { deleteSelection() }
+                    Button("Deselect") { selectedIDs.removeAll() }
+                }
+                .padding(6)
+                #if os(macOS)
+                .background(SelectionKeyboardTarget(
+                    delete: deleteSelection,
+                    deselect: { selectedIDs.removeAll() }
+                ))
+                #else
+                .focusable()
+                .focused($selectionFocused)
+                .onAppear { selectionFocused = true }
+                .onKeyPress(keys: [.delete, .deleteForward]) { _ in
+                    deleteSelection()
+                    return .handled
+                }
+                .onKeyPress(.escape) {
+                    selectedIDs.removeAll()
+                    return .handled
+                }
+                #endif
+            } else {
+                Text("Drag in the left margin to select blocks · Type / for block types · ↩ for a new block")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 6)
+            }
         }
     }
 
@@ -86,7 +123,30 @@ struct BlockEditorView: View {
         AnyView(ForEach(Array(blocks.enumerated()), id: \.element.id) { index, block in
             VStack(alignment: .leading, spacing: 2) {
                 blockRow(at: index, siblings: blocks, block: block)
-                    .onDrop(of: [.text], delegate: BlockDropDelegate(
+                    .simultaneousGesture(TapGesture().onEnded { selectedIDs.removeAll() })
+                    .padding(.leading, 20)
+                    .overlay(alignment: .leading) {
+                        Color.clear
+                            .frame(width: 20)
+                            .contentShape(Rectangle())
+                            .help("Drag to select blocks")
+                            .gesture(DragGesture(minimumDistance: 0, coordinateSpace: .named("blockSelection"))
+                                .onChanged { drag in
+                                    let range = min(drag.startLocation.y, drag.location.y)...max(drag.startLocation.y, drag.location.y)
+                                    selectedIDs = Set(rowFrames.compactMap { id, frame in
+                                        range.overlaps(frame.minY...frame.maxY) ? id : nil
+                                    })
+                                    focusedBlockID = nil
+                                    #if !os(macOS)
+                                    selectionFocused = true
+                                    #endif
+                                })
+                    }
+                    .background(selectedIDs.contains(block.id) ? Color.accentColor.opacity(0.15) : Color.clear)
+                    .background(GeometryReader { proxy in
+                        Color.clear.preference(key: BlockFrames.self, value: [block.id: proxy.frame(in: .named("blockSelection"))])
+                    })
+                    .onDrop(of: [.pokaBlock], delegate: BlockDropDelegate(
                         destinationID: block.id,
                         draggedBlockID: $draggedBlockID,
                         moveBlock: moveBlock
@@ -165,9 +225,11 @@ struct BlockEditorView: View {
                 changeBlockKind(blockID: block.id, to: kind)
             },
             onDeleteBlock: {
-                deleteBlock(id: block.id)
+                if selectedIDs.contains(block.id) { deleteSelection() }
+                else { deleteBlock(id: block.id) }
             },
             onDragStart: {
+                if !selectedIDs.contains(block.id) { selectedIDs.removeAll() }
                 draggedBlockID = block.id
             },
             isToggleExpanded: expandedToggleIDs.contains(block.id),
@@ -328,19 +390,49 @@ struct BlockEditorView: View {
     }
 
     private func moveBlock(from sourceID: UUID, before destinationID: UUID?) {
-        guard sourceID != destinationID,
-              let sourceIndex = noteStore.editorBlocks.firstIndex(where: { $0.id == sourceID })
-        else { return }
-
-        let block = noteStore.editorBlocks.remove(at: sourceIndex)
-        if let destinationID,
-           let destinationIndex = noteStore.editorBlocks.firstIndex(where: { $0.id == destinationID }) {
-            noteStore.editorBlocks.insert(block, at: destinationIndex)
+        let ids: Set<UUID> = selectedIDs.contains(sourceID) ? selectedIDs : [sourceID]
+        var remaining = noteStore.editorBlocks
+        let moving = extract(ids, from: &remaining)
+        guard !moving.isEmpty else { return }
+        if let destinationID {
+            guard insert(moving, before: destinationID, in: &remaining) else { return }
         } else {
-            noteStore.editorBlocks.append(block)
+            remaining.append(contentsOf: moving)
         }
-        noteStore.commitEditorBlocks(noteStore.editorBlocks)
-        focusedBlockID = sourceID
+        noteStore.commitEditorBlocks(remaining)
+    }
+
+    private func deleteSelection() {
+        var remaining = noteStore.editorBlocks
+        _ = extract(selectedIDs, from: &remaining)
+        if remaining.isEmpty { remaining.append(Block()) }
+        selectedIDs.removeAll()
+        noteStore.commitEditorBlocks(remaining)
+        focusedBlockID = remaining.first?.id
+    }
+
+    private func extract(_ ids: Set<UUID>, from blocks: inout [Block]) -> [Block] {
+        var extracted: [Block] = []
+        for index in blocks.indices {
+            if ids.contains(blocks[index].id) {
+                extracted.append(blocks[index])
+            } else {
+                extracted += extract(ids, from: &blocks[index].children)
+            }
+        }
+        blocks.removeAll { ids.contains($0.id) }
+        return extracted
+    }
+
+    private func insert(_ moving: [Block], before id: UUID, in blocks: inout [Block]) -> Bool {
+        if let position = blocks.firstIndex(where: { $0.id == id }) {
+            blocks.insert(contentsOf: moving, at: position)
+            return true
+        }
+        for index in blocks.indices {
+            if insert(moving, before: id, in: &blocks[index].children) { return true }
+        }
+        return false
     }
 
     private func findBlock(id: UUID, in blocks: [Block]) -> Block? {
@@ -429,17 +521,69 @@ struct BlockEditorView: View {
     }
 }
 
+#if os(macOS)
+private struct SelectionKeyboardTarget: NSViewRepresentable {
+    let delete: () -> Void
+    let deselect: () -> Void
+
+    func makeNSView(context: Context) -> SelectionResponder {
+        SelectionResponder()
+    }
+
+    func updateNSView(_ view: SelectionResponder, context: Context) {
+        view.delete = delete
+        view.deselect = deselect
+    }
+}
+
+private final class SelectionResponder: NSView {
+    var delete: () -> Void = {}
+    var deselect: () -> Void = {}
+
+    override var acceptsFirstResponder: Bool { true }
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard window != nil else { return }
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            window?.makeFirstResponder(self)
+        }
+    }
+
+    override func keyDown(with event: NSEvent) {
+        switch event.keyCode {
+        case 51, 117:
+            if !event.isARepeat { delete() }
+        case 53:
+            deselect()
+        default:
+            super.keyDown(with: event)
+        }
+    }
+}
+#endif
+
+private struct BlockFrames: PreferenceKey {
+    static let defaultValue: [UUID: CGRect] = [:]
+
+    static func reduce(value: inout [UUID: CGRect], nextValue: () -> [UUID: CGRect]) {
+        value.merge(nextValue(), uniquingKeysWith: { _, new in new })
+    }
+}
+
+extension UTType {
+    static let pokaBlock = UTType(exportedAs: "app.poka.notes.block")
+}
+
 private struct BlockDropDelegate: DropDelegate {
     let destinationID: UUID?
     @Binding var draggedBlockID: UUID?
     let moveBlock: (UUID, UUID?) -> Void
 
-    func dropEntered(info: DropInfo) {
-        guard let sourceID = draggedBlockID, sourceID != destinationID else { return }
-        moveBlock(sourceID, destinationID)
-    }
-
     func performDrop(info: DropInfo) -> Bool {
+        guard let sourceID = draggedBlockID else { return false }
+        moveBlock(sourceID, destinationID)
         draggedBlockID = nil
         return true
     }

@@ -1,4 +1,5 @@
 import SwiftUI
+import UniformTypeIdentifiers
 #if os(macOS)
 import AppKit
 #endif
@@ -229,7 +230,13 @@ private struct BlockControls: View {
             .accessibilityLabel("Move or change block type")
             .onDrag {
                 onDragStart()
-                return NSItemProvider(object: blockID.uuidString as NSString)
+                let provider = NSItemProvider()
+                let data = Data(blockID.uuidString.utf8)
+                provider.registerDataRepresentation(forTypeIdentifier: UTType.pokaBlock.identifier, visibility: .ownProcess) { completion in
+                    completion(data, nil)
+                    return nil
+                }
+                return provider
             }
         }
         .foregroundStyle(.tertiary)
