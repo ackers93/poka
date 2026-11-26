@@ -58,6 +58,11 @@ struct BlockRowView: View {
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
                     field
+                } else if block.kind == .table {
+                    TableBlockView(rows: Binding(
+                        get: { block.tableRows ?? Block.newTable(title: block.text) },
+                        set: { block.tableRows = $0 }
+                    ))
                 } else if block.kind == .divider {
                     #if os(macOS)
                     MacDividerView(
@@ -444,3 +449,136 @@ private final class BlockNSTextView: NSTextView {
     }
 }
 #endif
+
+private struct TableBlockView: View {
+    @Binding var rows: [[String]]
+    @State private var sortedColumn: Int?
+    @State private var ascending = true
+
+    var body: some View {
+        VStack(alignment: .leading) {
+            ScrollView(.horizontal) {
+                Grid(horizontalSpacing: 4, verticalSpacing: 4) {
+                    ForEach(rows.indices, id: \.self) { row in
+                        GridRow {
+                            if row == 0 {
+                                Color.clear.frame(width: 24, height: 1)
+                            } else {
+                                Menu {
+                                    Button("Insert Row Above") { insertRow(at: row) }
+                                    Button("Insert Row Below") { insertRow(at: row + 1) }
+                                    Button("Remove Row") { rows.remove(at: row) }
+                                } label: {
+                                    Image(systemName: "ellipsis.circle")
+                                }
+                                .accessibilityLabel("Options for row \(row)")
+                            }
+                            ForEach(rows[row].indices, id: \.self) { column in
+                                HStack(spacing: 2) {
+                                    TextField(row == 0 ? "Heading" : "", text: cell(row, column))
+                                        .textFieldStyle(.plain)
+                                        .fontWeight(row == 0 ? .semibold : .regular)
+                                    if row == 0 {
+                                        columnMenu(column)
+                                    }
+                                }
+                                .padding(6)
+                                .frame(width: 150)
+                                .background(.quaternary, in: RoundedRectangle(cornerRadius: 4))
+                            }
+                        }
+                    }
+                }
+            }
+            HStack {
+                Button("Add Row") { insertRow(at: rows.count) }
+                Button("Add Column") { insertColumn(at: rows.first?.count ?? 0) }
+            }
+            .controlSize(.small)
+        }
+    }
+
+    private func cell(_ row: Int, _ column: Int) -> Binding<String> {
+        Binding {
+            guard rows.indices.contains(row), rows[row].indices.contains(column) else { return "" }
+            return rows[row][column]
+        } set: { value in
+            guard rows.indices.contains(row), rows[row].indices.contains(column) else { return }
+            rows[row][column] = value
+            if row > 0, sortedColumn == column { validateSort() }
+        }
+    }
+
+    private func columnMenu(_ column: Int) -> some View {
+        Menu {
+            Button("Sort Ascending") { sort(column, ascending: true) }
+            Button("Sort Descending") { sort(column, ascending: false) }
+            Divider()
+            Button("Insert Column Left") { insertColumn(at: column) }
+            Button("Insert Column Right") { insertColumn(at: column + 1) }
+            Button("Remove Column") {
+                if let active = sortedColumn {
+                    if active == column { sortedColumn = nil }
+                    if active > column { sortedColumn = active - 1 }
+                }
+                rows = rows.map { row in
+                    var copy = row
+                    copy.remove(at: column)
+                    return copy
+                }
+            }
+            .disabled(rows.first?.count == 1)
+        } label: {
+            Image(systemName: sortedColumn == column ? (ascending ? "chevron.up" : "chevron.down") : "chevron.down")
+                .font(.caption.weight(.semibold))
+                .frame(width: 18, height: 18)
+                .foregroundStyle(sortedColumn == column ? Color.accentColor : Color.secondary)
+                .background {
+                    if sortedColumn == column {
+                        RoundedRectangle(cornerRadius: 4).fill(Color.accentColor.opacity(0.16))
+                    }
+                }
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.borderlessButton)
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .accessibilityLabel("Options for column \(column + 1)")
+        .accessibilityValue(sortedColumn == column ? (ascending ? "Sorted ascending" : "Sorted descending") : "")
+    }
+
+    private func sort(_ column: Int, ascending: Bool) {
+        guard let header = rows.first else { return }
+        sortedColumn = column
+        self.ascending = ascending
+        rows = [header] + rows.dropFirst().sorted {
+            let order = $0[column].localizedStandardCompare($1[column])
+            return order == (ascending ? .orderedAscending : .orderedDescending)
+        }
+    }
+
+    private func validateSort() {
+        guard let column = sortedColumn else { return }
+        let data = rows.dropFirst()
+        let reversedOrder: ComparisonResult = ascending ? .orderedDescending : .orderedAscending
+        if zip(data, data.dropFirst()).contains(where: {
+            $0.0[column].localizedStandardCompare($0.1[column]) == reversedOrder
+        }) {
+            sortedColumn = nil
+        }
+    }
+
+    private func insertRow(at index: Int) {
+        rows.insert(Array(repeating: "", count: rows.first?.count ?? 0), at: index)
+        validateSort()
+    }
+
+    private func insertColumn(at index: Int) {
+        if let active = sortedColumn, index <= active { sortedColumn = active + 1 }
+        rows = rows.enumerated().map { offset, row in
+            var copy = row
+            copy.insert(offset == 0 ? "Column \(index + 1)" : "", at: index)
+            return copy
+        }
+    }
+}

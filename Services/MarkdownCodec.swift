@@ -13,6 +13,21 @@ enum MarkdownCodec {
             let line = String(lines[index])
             let trimmed = line.trimmingCharacters(in: .whitespaces)
 
+            if let header = cells(in: trimmed), index + 1 < lines.count,
+               isTableSeparator(lines[index + 1], width: header.count) {
+                var rows = [header]
+                index += 2
+                while index < lines.count, let row = cells(in: String(lines[index])), row.count == header.count {
+                    if index + 1 < lines.count, isTableSeparator(lines[index + 1], width: row.count) { break }
+                    rows.append(row)
+                    index += 1
+                }
+                var table = Block(kind: .table)
+                table.tableRows = rows
+                blocks.append(table)
+                continue
+            }
+
             if trimmed == "<details>" {
                 index = lines.index(after: index)
                 var title = "Toggle"
@@ -105,10 +120,48 @@ enum MarkdownCodec {
         return blocks
     }
 
+    private static func isTableSeparator(_ line: Substring, width: Int) -> Bool {
+        guard let parts = cells(in: String(line)), parts.count == width else { return false }
+        return !line.contains("&") && parts.allSatisfy { $0.range(of: "^:?-{3,}:?$", options: .regularExpression) != nil }
+    }
+
+    private static func cells(in line: String) -> [String]? {
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        guard trimmed.count >= 2, trimmed.first == "|", trimmed.last == "|" else { return nil }
+        return String(trimmed.dropFirst().dropLast()).components(separatedBy: "|").map {
+            $0.trimmingCharacters(in: .whitespaces)
+                .replacingOccurrences(of: "&#124;", with: "|")
+                .replacingOccurrences(of: "&#45;", with: "-")
+                .replacingOccurrences(of: "&#32;", with: " ")
+                .replacingOccurrences(of: "&#10;", with: "\n")
+                .replacingOccurrences(of: "&amp;", with: "&")
+        }
+    }
+
     static func serialize(_ blocks: [Block]) -> String {
         var lines: [String] = []
         for block in blocks {
             switch block.kind {
+            case .table:
+                let rows = block.tableRows ?? Block.newTable(title: block.text)
+                for (index, row) in rows.enumerated() {
+                    let cells = row.map { cell in
+                        var value = cell.replacingOccurrences(of: "&", with: "&amp;")
+                            .replacingOccurrences(of: "|", with: "&#124;")
+                            .replacingOccurrences(of: "\n", with: "&#10;")
+                        if value.hasPrefix(" ") || value.hasSuffix(" ") {
+                            value = value.replacingOccurrences(of: " ", with: "&#32;")
+                        }
+                        if value.range(of: "^:?-{3,}:?$", options: .regularExpression) != nil {
+                            value = value.replacingOccurrences(of: "-", with: "&#45;")
+                        }
+                        return value
+                    }
+                    lines.append("| " + cells.joined(separator: " | ") + " |")
+                    if index == 0 {
+                        lines.append("| " + Array(repeating: "---", count: row.count).joined(separator: " | ") + " |")
+                    }
+                }
             case .paragraph:
                 lines.append(block.text)
             case .heading1:

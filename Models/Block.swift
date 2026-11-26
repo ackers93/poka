@@ -11,6 +11,7 @@ enum BlockKind: String, CaseIterable, Identifiable, Codable {
     case code
     case divider
     case toggle
+    case table
 
     var id: String { rawValue }
 
@@ -25,6 +26,7 @@ enum BlockKind: String, CaseIterable, Identifiable, Codable {
         case .quote: "Quote"
         case .code: "Code"
         case .divider: "Divider"
+        case .table: "Table"
         case .toggle: "Toggle"
         }
     }
@@ -40,6 +42,7 @@ enum BlockKind: String, CaseIterable, Identifiable, Codable {
         case .quote: ["quote", "blockquote"]
         case .code: ["code", "snippet"]
         case .divider: ["divider", "line", "hr", "---"]
+        case .table: ["table", "grid"]
         case .toggle: ["toggle", "dropdown", "details", "collapse", "nested"]
         }
     }
@@ -55,6 +58,7 @@ enum BlockKind: String, CaseIterable, Identifiable, Codable {
         case .quote: "text.quote"
         case .code: "chevron.left.forwardslash.chevron.right"
         case .divider: "minus"
+        case .table: "tablecells"
         case .toggle: "chevron.right"
         }
     }
@@ -64,12 +68,18 @@ struct Block: Identifiable, Equatable, Codable {
     let id: UUID
     var kind: BlockKind
     var text: String
+    var tableRows: [[String]]?
     var children: [Block]
+
+    static func newTable(title: String) -> [[String]] {
+        [[title.isEmpty ? "Column 1" : title, "Column 2"], ["", ""]]
+    }
 
     init(id: UUID = UUID(), kind: BlockKind = .paragraph, text: String = "", children: [Block] = []) {
         self.id = id
         self.kind = kind
         self.text = text
+        self.tableRows = kind == .table ? Self.newTable(title: text) : nil
         self.children = children
     }
 }

@@ -188,6 +188,7 @@ struct BlockEditorView: View {
             },
             set: { updatedBlock in
                 guard replaceBlock(updatedBlock, id: block.id, in: &noteStore.editorBlocks) else { return }
+                if updatedBlock.kind == .table { noteStore.commitEditorBlocks(noteStore.editorBlocks) }
             }
         )
     }
@@ -252,6 +253,13 @@ struct BlockEditorView: View {
     }
 
     private func updateBlockKind(_ block: inout Block, to kind: BlockKind) {
+        if kind == .table, block.kind != .table {
+            block.tableRows = Block.newTable(title: block.text)
+            block.text = ""
+        } else if block.kind == .table, kind != .table {
+            block.text = MarkdownCodec.serialize([block])
+            block.tableRows = nil
+        }
         block.kind = kind
         if kind == .divider {
             block.text = ""
